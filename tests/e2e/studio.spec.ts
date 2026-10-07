@@ -19,22 +19,37 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
-  await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeEnabled()
+  await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
   await expect(page.locator('.resume h1')).toHaveText('Felipe Rangel Ribeiro')
   await page.getByRole('button', { name: 'Nova Versão', exact: true }).click()
   await page.getByLabel('Nome da versão').fill(id)
   await page.getByRole('button', { name: 'Criar versão', exact: true }).click()
-  await page.getByRole('tab', { name: 'Conteúdo' }).click()
+  await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
   await page
-    .getByLabel('Conteúdo do currículo')
+    .getByLabel('Editar código Markdown')
     .fill(
       '# Felipe Rangel Ribeiro\n\n## Backend\n\n- Node.js e AWS\n\n[GitHub](https://github.com/Yokuny)\n\n<script>alert("xss")</script>',
     )
   await expect(page.locator('.resume h2')).toHaveText('Backend')
   await expect(page.locator('.resume script')).toHaveCount(0)
-  await page.getByRole('tab', { name: 'Design' }).click()
+  await page.getByRole('button', { name: 'Visualizar PDF', exact: true }).click()
   await page.getByLabel('Família da fonte').selectOption('Georgia')
   await page.getByLabel('Cor de destaque').fill('#334455')
+  await expect(page.getByRole('button', { name: 'Justificar texto', exact: true })).toBeDisabled()
+  await page.locator('.resume li').evaluate((element) => {
+    const range = document.createRange()
+    const text = element.firstChild
+    const selection = window.getSelection()
+    if (!text || !selection) throw new Error('Texto não selecionável')
+    range.setStart(text, 0)
+    range.setEnd(text, 4)
+    selection.removeAllRanges()
+    selection.addRange(range)
+  })
+  await expect(page.getByRole('button', { name: 'Justificar texto', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Justificar texto', exact: true }).click()
+  await expect(page.locator('.resume li')).toHaveCSS('text-align', 'justify')
+  await expect(page.locator('.resume h1')).toHaveCSS('text-align', 'start')
   await expect(page.locator('.resume')).toHaveCSS('font-family', 'Georgia, serif')
   await page.getByRole('spinbutton', { name: 'Tamanho do texto' }).focus()
   await page.keyboard.press('ArrowUp')
@@ -48,12 +63,18 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
   await page.getByRole('button', { name: 'Abrir menu lateral' }).click()
   await expect(page.getByLabel('Família da fonte')).toHaveValue('Georgia')
   await expect(page.locator('.resume h2')).toHaveText('Backend')
-  await page.getByRole('button', { name: 'Salvar versão' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('status')).toContainText('salva em content/cv')
   expect(await fs.readFile(`content/cv/${id}.md`, 'utf8')).toContain('Node.js e AWS')
   expect(JSON.parse(await fs.readFile(`content/cv/${id}.layout.json`, 'utf8')).accentColor).toBe(
     '#334455',
   )
+  expect(
+    JSON.parse(await fs.readFile(`content/cv/${id}.layout.json`, 'utf8')).blockAlignments,
+  ).toEqual([expect.objectContaining({ align: 'justify' })])
+  await page.reload()
+  await page.getByRole('tab', { name: id, exact: true }).click()
+  await expect(page.locator('.resume li')).toHaveCSS('text-align', 'justify')
   const all = await (await request.get('/api/resumes')).json()
   const persisted = all.find((v: { id: string }) => v.id === id)
   const { revision, ...resume } = persisted
@@ -113,20 +134,20 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
 
 test('restaura rascunho e aplica impressão A4 sem a interface', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeEnabled()
-  await page.getByRole('tab', { name: 'Conteúdo' }).click()
+  await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
+  await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
   await page
-    .getByLabel('Conteúdo do currículo')
+    .getByLabel('Editar código Markdown')
     .fill('# Rascunho persistente\n\nTexto para testar.\n\n[Link](https://github.com/Yokuny)')
   await page.reload()
   await expect(page.locator('.resume h1')).toHaveText('Rascunho persistente')
-  await expect(page.getByRole('button', { name: 'Salvar versão' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
   await page.evaluate(() => {
     window.print = () => {
       document.documentElement.dataset.printRequested = 'true'
     }
   })
-  await page.getByRole('button', { name: /^Exportar(?: PDF)?$/ }).click()
+  await page.getByRole('button', { name: /^Export$/ }).click()
   await expect(page.locator('html')).toHaveAttribute('data-print-requested', 'true')
   await page.emulateMedia({ media: 'print' })
   await expect(page.locator('.app-header')).toBeHidden()
@@ -137,34 +158,70 @@ test('restaura rascunho e aplica impressão A4 sem a interface', async ({ page }
 test('modo estático permite editar e baixar sem fingir gravação no Git', async ({ page }) => {
   await page.goto('http://127.0.0.1:4173')
   await expect(page.getByText('Modo de prévia:', { exact: false })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Salvar versão' })).toBeDisabled()
-  await page.getByRole('tab', { name: 'Conteúdo' }).click()
-  await page.getByLabel('Conteúdo do currículo').fill('# Versão estática')
+  await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
+  await page.getByLabel('Editar código Markdown').fill('# Versão estática')
   await expect(page.locator('.resume h1')).toHaveText('Versão estática')
+  await expect(page.getByRole('tab', { name: 'Conteúdo', exact: true })).toHaveCount(0)
+  const header = page.locator('.app-header')
+  const chooser = page.waitForEvent('filechooser')
+  await header.getByRole('button', { name: 'Import', exact: true }).click()
+  await (await chooser).setFiles({
+    name: 'importado.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from('# Versão importada\n\nUm parágrafo de teste.'),
+  })
+  await expect(page.getByLabel('Editar código Markdown')).toHaveValue(
+    '# Versão importada\n\nUm parágrafo de teste.',
+  )
+  await page.getByRole('button', { name: 'Visualizar PDF', exact: true }).click()
+  await page.locator('.resume p').evaluate((element) => {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    const selection = window.getSelection()
+    if (!selection) throw new Error('Seleção indisponível')
+    selection.removeAllRanges()
+    selection.addRange(range)
+  })
+  await expect(page.getByRole('button', { name: 'Justificar texto', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Justificar texto', exact: true }).click()
+  await expect(page.locator('.resume p')).toHaveCSS('text-align', 'justify')
+  await expect(page.locator('.resume h1')).toHaveCSS('text-align', 'start')
+  await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
+  await page
+    .getByLabel('Editar código Markdown')
+    .fill('# Versão importada\n\nNovo parágrafo.\n\nUm parágrafo de teste.')
+  await page.getByRole('button', { name: 'Visualizar PDF', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Justificar texto', exact: true })).toBeDisabled()
+  await expect(page.locator('.resume p').first()).toHaveCSS('text-align', 'left')
+  await expect(page.locator('.resume p').last()).toHaveCSS('text-align', 'justify')
+  await page.emulateMedia({ media: 'print' })
+  await expect(page.locator('.resume p').last()).toHaveCSS('text-align', 'justify')
+  await page.emulateMedia({ media: 'screen' })
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Baixar arquivos', exact: true }).click()
+  await header.getByRole('button', { name: 'Download', exact: true }).click()
   expect((await download).suggestedFilename()).toBe('base.md')
 })
 
 test('interface móvel cabe na viewport e permite edição', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
-  await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeEnabled()
-  await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
+  await expect(page.getByRole('button', { name: /^Export$/ })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await expect(page.getByRole('tab', { name: 'Vaga', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Copiar prompt para IA' })).toHaveCount(0)
-  await page.getByRole('tab', { name: 'Conteúdo', exact: true }).click()
-  await page.getByLabel('Conteúdo do currículo').fill('# Currículo no celular')
+  await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
+  await page.getByLabel('Editar código Markdown').fill('# Currículo no celular')
   await page.getByRole('button', { name: 'Fechar menu lateral' }).click()
   await expect(page.locator('.sidebar')).toBeHidden()
   await page.getByRole('button', { name: 'Abrir menu lateral' }).click()
-  await expect(page.getByLabel('Conteúdo do currículo')).toHaveValue('# Currículo no celular')
+  await expect(page.getByLabel('Editar código Markdown')).toHaveValue('# Currículo no celular')
 })
 
 test('campos numéricos aceitam digitação, botões, arraste e limites', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeEnabled()
+  await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
   const text = page.getByRole('spinbutton', { name: 'Tamanho do texto', exact: true })
   await text.fill('11')
   await text.press('Enter')
@@ -221,13 +278,13 @@ test('abas confirmam exclusão, aceitam atalhos e removem arquivos e rascunhos',
   const name = `${id}-tabs`
   try {
     await page.goto('/')
-    await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeEnabled()
+    await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
     await page.getByRole('button', { name: 'Nova Versão', exact: true }).click()
     await page.getByLabel('Nome da versão').fill(name)
     await page.getByRole('button', { name: 'Criar versão', exact: true }).click()
     const versionTab = page.getByRole('tab', { name, exact: true })
     await expect(versionTab).toHaveAttribute('aria-selected', 'true')
-    await page.getByRole('button', { name: 'Salvar versão' }).click()
+    await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('status')).toContainText('salva em content/cv')
     await versionTab.click({ button: 'middle' })
     await expect(page.getByRole('heading', { name: 'Fechar significa excluir' })).toBeVisible()
@@ -235,8 +292,8 @@ test('abas confirmam exclusão, aceitam atalhos e removem arquivos e rascunhos',
     await versionTab.click({ clickCount: 3 })
     await expect(page.getByRole('heading', { name: 'Fechar significa excluir' })).toBeVisible()
     await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
-    await page.getByRole('tab', { name: 'Conteúdo', exact: true }).click()
-    await page.getByLabel('Conteúdo do currículo').fill('# Rascunho a excluir')
+    await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
+    await page.getByLabel('Editar código Markdown').fill('# Rascunho a excluir')
     await page.getByRole('button', { name: `Fechar e excluir ${name}`, exact: true }).click()
     await page.getByRole('button', { name: 'Fechar e excluir', exact: true }).click()
     await expect(versionTab).toHaveCount(0)
@@ -244,7 +301,7 @@ test('abas confirmam exclusão, aceitam atalhos e removem arquivos e rascunhos',
       await expect(fs.access(`content/cv/${name}.${ext}`)).rejects.toThrow()
     }
     await page.reload()
-    await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeEnabled()
+    await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
     await expect(versionTab).toHaveCount(0)
     expect(await page.evaluate(() => localStorage.getItem('cv-studio:drafts:v1'))).not.toContain(
       name,
@@ -271,7 +328,7 @@ test('fechar todas as abas em modo estático mostra estado vazio e permite recom
     await page.getByRole('button', { name: 'Fechar e excluir', exact: true }).click()
   }
   await expect(page.getByRole('heading', { name: 'Nenhuma versão aberta' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /^Export$/ })).toBeDisabled()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Nenhuma versão aberta' })).toBeVisible()
   await page.locator('.new-version-tab').click()
@@ -288,10 +345,10 @@ test('alterna PDF, Markdown renderizado e Edição mantendo conteúdo e impress�
   page,
 }) => {
   await page.goto('/')
-  await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeEnabled()
+  await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
   const pdf = page.getByRole('button', { name: 'Visualizar PDF', exact: true })
   const markdown = page.getByRole('button', { name: 'Visualizar Markdown', exact: true })
-  const text = page.getByRole('button', { name: 'Visualizar Edição', exact: true })
+  const text = page.getByRole('button', { name: 'Visualizar Texto', exact: true })
   await expect(pdf).toHaveAttribute('aria-pressed', 'true')
   await text.click()
   await expect(text).toHaveAttribute('aria-pressed', 'true')
@@ -299,10 +356,10 @@ test('alterna PDF, Markdown renderizado e Edição mantendo conteúdo e impress�
   await expect(
     page.getByRole('textbox', { name: 'Editar código Markdown', exact: true }),
   ).toHaveValue(/# Felipe Rangel Ribeiro/)
-  await page.getByRole('tab', { name: 'Conteúdo', exact: true }).click()
+  await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
   const source =
     '# Nome de teste\n\n## Experiência\n\n- **Node.js**\n\n<script>alert("xss")</script>'
-  await page.getByLabel('Conteúdo do currículo').fill(source)
+  await page.getByLabel('Editar código Markdown').fill(source)
   await expect(
     page.getByRole('textbox', { name: 'Editar código Markdown', exact: true }),
   ).toHaveValue(source)
@@ -348,7 +405,7 @@ test('alterna PDF, Markdown renderizado e Edição mantendo conteúdo e impress�
       document.documentElement.dataset.printRequested = 'true'
     }
   })
-  await page.getByRole('button', { name: /^Exportar(?: PDF)?$/ }).click()
+  await page.getByRole('button', { name: /^Export$/ }).click()
   await expect(page.locator('html')).toHaveAttribute('data-print-requested', 'true')
   await page.emulateMedia({ media: 'print' })
   await expect(page.locator('.markdown-preview')).toBeHidden()
@@ -371,35 +428,40 @@ test('editores visual e de código sincronizam, preservam tabelas e salvam Markd
   const name = `${id}-editing`
   try {
     await page.goto('/')
-    await expect(page.getByRole('button', { name: /^Exportar(?: PDF)?$/ })).toBeEnabled()
+    await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
     await page.getByRole('button', { name: 'Nova Versão', exact: true }).click()
     await page.getByLabel('Nome da versão').fill(name)
     await page.getByRole('button', { name: 'Criar versão', exact: true }).click()
-    await page.getByRole('button', { name: 'Visualizar Edição', exact: true }).click()
+    await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
     const code = page.getByRole('textbox', { name: 'Editar código Markdown', exact: true })
     const source =
       '# Currículo de teste\n\n## Experiência\n\n- **Node.js**\n\n[GitHub](https://github.com/Yokuny)\n\n| Stack | Nível |\n| --- | --- |\n| React | Avançado |'
     await code.fill(source)
-    await page.getByRole('tab', { name: 'Conteúdo', exact: true }).click()
-    await expect(page.getByLabel('Conteúdo do currículo')).toHaveValue(source)
+    await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
+    await expect(page.getByLabel('Editar código Markdown')).toHaveValue(source)
     await page.getByRole('button', { name: 'Visualizar Markdown', exact: true }).click()
     await expect(
       page.getByRole('textbox', { name: 'Editar Markdown formatado', exact: true }),
     ).toBeEditable()
     await expect(page.locator('.markdown-rendered table')).toContainText('Avançado')
     // Merely opening the visual editor must not rewrite the source.
-    await expect(page.getByLabel('Conteúdo do currículo')).toHaveValue(source)
+    expect(
+      await page.evaluate(
+        (id) =>
+          JSON.parse(localStorage.getItem('cv-studio:drafts:v1') ?? '[]').find(
+            (v: { id: string }) => v.id === id,
+          )?.markdown,
+        name,
+      ),
+    ).toBe(source)
     await page.locator('.markdown-rendered h1').click()
     await page.keyboard.press('End')
     await page.keyboard.type(' atualizado')
-    await expect(page.getByLabel('Conteúdo do currículo')).toHaveValue(
-      /# Currículo de teste atualizado/,
-    )
     await expect(page.locator('.markdown-rendered h1')).toHaveText('Currículo de teste atualizado')
     await page.locator('.markdown-rendered td').first().click()
     await page.keyboard.press('End')
     await page.keyboard.type(' e TypeScript')
-    await page.getByRole('button', { name: 'Visualizar Edição', exact: true }).click()
+    await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
     await expect(code).toHaveValue(/React e TypeScript/)
     await expect(code).toHaveValue(/https:\/\/github.com\/Yokuny/)
     await expect(code).toHaveValue(/\*\*Node.js\*\*/)
@@ -412,7 +474,7 @@ test('editores visual e de código sincronizam, preservam tabelas e salvam Markd
     await expect(page.locator('.markdown-rendered h1')).toHaveText('Título editado no código')
     await page.getByRole('button', { name: 'Visualizar PDF', exact: true }).click()
     await expect(page.locator('.resume h1')).toHaveText('Título editado no código')
-    await page.getByRole('button', { name: 'Salvar versão' }).click()
+    await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('status')).toContainText('salva em content/cv')
     expect(await fs.readFile(`content/cv/${name}.md`, 'utf8')).toContain(
       '# Título editado no código',

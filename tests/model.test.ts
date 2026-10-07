@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { revision } from '../server/resumes'
-import { defaultLayout, slugify, validLayout, validResume } from '../src/lib/model'
+import {
+  defaultLayout,
+  layoutCss,
+  remapBlockAlignments,
+  slugify,
+  textAlignments,
+  validLayout,
+  validResume,
+} from '../src/lib/model'
 
 const resume = {
   id: 'base',
@@ -30,6 +38,43 @@ describe('arquivos de currículo', () => {
       revision({ ...resume, layout: { ...defaultLayout, fontSize: 11 } }),
     )
     expect(revision(resume)).not.toBe(revision({ ...resume, name: 'Outra versão' }))
+  })
+  it('aceita layouts antigos e restringe o alinhamento aos valores suportados', () => {
+    const { textAlign: _textAlign, ...legacy } = defaultLayout
+    expect(validLayout(legacy)).toBe(true)
+    expect(layoutCss(legacy)['--cv-text-align']).toBe('left')
+    for (const textAlign of textAlignments) expect(validLayout({ ...legacy, textAlign })).toBe(true)
+    for (const textAlign of ['justify;display:none', 'between', null, 1])
+      expect(validLayout({ ...legacy, textAlign })).toBe(false)
+    expect(revision(resume)).not.toBe(
+      revision({ ...resume, layout: { ...defaultLayout, textAlign: 'justify' } }),
+    )
+  })
+  it('preserva o alinhamento de trechos ao editar e rejeita posições inválidas', () => {
+    const before = 'Primeiro.\n\nSegundo.'
+    const blocks = [{ start: 11, end: 19, align: 'justify' as const }]
+    expect(remapBlockAlignments(blocks, before, `Novo.\n\n${before}`)).toEqual([
+      { start: 18, end: 26, align: 'justify' },
+    ])
+    expect(remapBlockAlignments(blocks, before, 'Primeiro.\n\nSegundo atualizado.')).toEqual([
+      { start: 11, end: 30, align: 'justify' },
+    ])
+    expect(remapBlockAlignments(blocks, before, 'Primeiro.\n\n')).toEqual([])
+    expect(validLayout({ ...defaultLayout, blockAlignments: blocks })).toBe(true)
+    expect(
+      validLayout({ ...defaultLayout, blockAlignments: [{ start: -1, end: 3, align: 'left' }] }),
+    ).toBe(false)
+    expect(
+      validLayout({ ...defaultLayout, blockAlignments: [{ start: 0, end: 3, align: 'invalid' }] }),
+    ).toBe(false)
+    expect(
+      remapBlockAlignments(
+        [{ ...blocks[0], source: 'Segundo.' }],
+        before,
+        'Primeiro.\n\nSegundo atualizado.',
+      ),
+    ).toEqual([{ start: 11, end: 30, align: 'justify', source: 'Segundo atualizado.' }])
+    expect(remapBlockAlignments([{ ...blocks[0], source: 'Outro...' }], before, before)).toEqual([])
   })
   it('ignora metadados antigos da vaga ao validar e calcular revisão', () => {
     const legacy = { ...resume, job: 'Node.js e AWS' }

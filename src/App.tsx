@@ -1,4 +1,8 @@
 import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   ArrowDownToLine,
   ArrowUpFromLine,
   BookOpen,
@@ -15,16 +19,27 @@ import {
   Plus,
   RotateCcw,
   Save,
-  SlidersHorizontal,
   Type,
   X,
   ZoomIn,
 } from 'lucide-react'
-import { type CSSProperties, lazy, Suspense, useEffect, useRef, useState } from 'react'
-import Markdown from 'react-markdown'
+import {
+  type CSSProperties,
+  createContext,
+  createElement,
+  type HTMLAttributes,
+  lazy,
+  Suspense,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+import Markdown, { type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { NumberField } from '@/components/number-field'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
 import {
   Dialog,
   DialogContent,
@@ -35,15 +50,17 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  type BlockAlignment,
   defaultLayout,
   fonts,
   type Layout,
   layoutCss,
   layoutRanges,
+  remapBlockAlignments,
   slugify,
+  type TextAlignment,
   validResume,
 } from '@/lib/model'
 import { deleteVersion, download, loadVersions, saveVersion, type Version } from '@/lib/repository'
@@ -96,6 +113,37 @@ function snapshot(v: Version) {
   return JSON.stringify(data)
 }
 
+const AlignmentContext = createContext({ layout: defaultLayout, markdown: '' })
+function alignedBlock(tag: 'p' | 'li' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6') {
+  return ({ node, ...props }: HTMLAttributes<HTMLElement> & ExtraProps) => {
+    const { layout, markdown } = useContext(AlignmentContext)
+    const start = node?.position?.start.offset
+    const end = node?.position?.end.offset
+    const block = layout.blockAlignments?.find(
+      (block) =>
+        block.start === start &&
+        block.end === end &&
+        (block.source === undefined || block.source === markdown.slice(start, end)),
+    )
+    return createElement(tag, {
+      ...props,
+      'data-block-start': start,
+      'data-block-end': end,
+      style: { ...props.style, ...(block ? { textAlign: block.align } : {}) },
+    })
+  }
+}
+const alignedComponents = {
+  p: alignedBlock('p'),
+  li: alignedBlock('li'),
+  h1: alignedBlock('h1'),
+  h2: alignedBlock('h2'),
+  h3: alignedBlock('h3'),
+  h4: alignedBlock('h4'),
+  h5: alignedBlock('h5'),
+  h6: alignedBlock('h6'),
+}
+
 export default function App() {
   const [versions, setVersions] = useState<Version[]>([])
   const [activeId, setActiveId] = useState('base')
@@ -109,8 +157,8 @@ export default function App() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [versionName, setVersionName] = useState('')
-  const [tab, setTab] = useState('design')
   const [preview, setPreview] = useState<'pdf' | 'markdown' | 'text'>('pdf')
+  const [selectedBlocks, setSelectedBlocks] = useState<Pick<BlockAlignment, 'start' | 'end'>[]>([])
   const [zoom, setZoom] = useState(0.85)
   const [paperHeight, setPaperHeight] = useState(1122)
   const [availableWidth, setAvailableWidth] = useState(900)
@@ -251,14 +299,79 @@ export default function App() {
     }
   }
 
+  useEffect(() => {
+    setSelectedBlocks([])
+    const captureSelection = () => {
+      const selection = window.getSelection()
+      const paper = paperRef.current
+      if (
+        preview !== 'pdf' ||
+        !paper ||
+        paper.dataset.version !== current.id ||
+        !selection?.rangeCount ||
+        selection.isCollapsed ||
+        !paper.contains(selection.anchorNode) ||
+        !paper.contains(selection.focusNode)
+      ) {
+        setSelectedBlocks([])
+        return
+      }
+      const range = selection.getRangeAt(0)
+      const blocks = Array.from(paper.querySelectorAll<HTMLElement>('[data-block-start]')).filter(
+        (element) =>
+          range.intersectsNode(element) &&
+          Number(element.dataset.blockEnd) <= current.markdown.length,
+      )
+      setSelectedBlocks(
+        blocks
+          .filter(
+            (element) => !blocks.some((child) => child !== element && element.contains(child)),
+          )
+          .map((element) => ({
+            start: Number(element.dataset.blockStart),
+            end: Number(element.dataset.blockEnd),
+          })),
+      )
+    }
+    document.addEventListener('selectionchange', captureSelection)
+    return () => document.removeEventListener('selectionchange', captureSelection)
+  }, [current.id, current.markdown.length, preview])
+
   function update(changes: Partial<Version> | ((v: Version) => Partial<Version>)) {
     setVersions((list) =>
-      list.map((v) =>
-        v.id === current.id
-          ? { ...v, ...(typeof changes === 'function' ? changes(v) : changes) }
-          : v,
-      ),
+      list.map((v) => {
+        if (v.id !== current.id) return v
+        const patch = typeof changes === 'function' ? changes(v) : changes
+        if (patch.markdown !== undefined && !patch.layout && v.layout.blockAlignments?.length) {
+          patch.layout = {
+            ...v.layout,
+            blockAlignments: remapBlockAlignments(
+              v.layout.blockAlignments,
+              v.markdown,
+              patch.markdown,
+            ),
+          }
+        }
+        return { ...v, ...patch }
+      }),
     )
+  }
+  function alignSelection(align: TextAlignment) {
+    update((v) => ({
+      layout: {
+        ...v.layout,
+        blockAlignments: [
+          ...(v.layout.blockAlignments ?? []).filter(
+            (block) => !selectedBlocks.some((selected) => selected.start === block.start),
+          ),
+          ...selectedBlocks.map((block) => ({
+            ...block,
+            align,
+            source: v.markdown.slice(block.start, block.end),
+          })),
+        ].sort((a, b) => a.start - b.start),
+      },
+    }))
   }
   function setToken<K extends keyof Layout>(key: K, value: Layout[K]) {
     update((v) => ({ layout: { ...v.layout, [key]: value } }))
@@ -312,24 +425,6 @@ export default function App() {
     } catch {
       setNotice('Não foi possível ler o arquivo.')
     }
-  }
-  async function reloadFile() {
-    if (
-      dirty &&
-      !window.confirm(
-        'Substituir este rascunho pelo arquivo do projeto? Baixe o Markdown primeiro se quiser preservar as alterações.',
-      )
-    )
-      return
-    const result = await loadVersions()
-    const version = result.versions.find((v) => v.id === current.id)
-    if (!version) {
-      setNotice('Esta versão ainda não existe no projeto. Salve-a primeiro.')
-      return
-    }
-    setVersions((list) => list.map((v) => (v.id === version.id ? version : v)))
-    setSaved((s) => ({ ...s, [version.id]: snapshot(version) }))
-    setNotice('Versão recarregada do projeto.')
   }
   function exportSources() {
     download(`${current.id}.md`, current.markdown, 'text/markdown;charset=utf-8')
@@ -408,32 +503,76 @@ export default function App() {
             <Button
               variant="ghost"
               size="sm"
-              aria-label="Visualizar Edição"
+              aria-label="Visualizar Texto"
               aria-pressed={preview === 'text'}
               title="Visualizar código para edição"
               disabled={!ready || !hasVersion}
               onClick={() => setPreview('text')}
             >
-              <Code2 /> Edição
+              <Code2 /> Texto
             </Button>
           </fieldset>
         </div>
         <div className="header-actions">
-          <Button
-            variant="outline"
-            aria-label="Salvar versão"
-            onClick={save}
-            disabled={!ready || !writable || saving || deleting || !hasVersion || !dirty}
-          >
-            <span className="inline-flex">
-              {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
-            </span>
-            <span className="button-label">Salvar</span>
-          </Button>
-          <Button onClick={() => window.print()} disabled={!ready || !hasVersion}>
-            <ArrowDownToLine />
-            <span>Exportar</span>
-          </Button>
+          <ButtonGroup className="action-group" aria-label="Resume actions">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Import"
+              title="Import Markdown"
+              onClick={() => importRef.current?.click()}
+              disabled={!ready || !hasVersion || deleting}
+            >
+              <ArrowUpFromLine />
+              <span className="button-label">Import</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Download"
+              title="Download source files"
+              onClick={exportSources}
+              disabled={!ready || !hasVersion}
+            >
+              <ArrowDownToLine />
+              <span className="button-label">Download</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Save"
+              title="Save version"
+              onClick={save}
+              disabled={!ready || !writable || saving || deleting || !hasVersion || !dirty}
+            >
+              <span className="inline-flex">
+                {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
+              </span>
+              <span className="button-label">Save</span>
+            </Button>
+            <Button
+              className="ml-1 rounded-md! shadow-none!"
+              size="sm"
+              aria-label="Export"
+              title="Export PDF"
+              onClick={() => window.print()}
+              disabled={!ready || !hasVersion}
+            >
+              <ArrowDownToLine />
+              <span className="button-label">Export</span>
+            </Button>
+          </ButtonGroup>
+          <input
+            ref={importRef}
+            type="file"
+            accept=".md,text/markdown"
+            className="hidden"
+            aria-label="Importar arquivo Markdown"
+            onChange={(e) => {
+              void importMarkdown(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
         </div>
       </header>
 
@@ -524,200 +663,139 @@ export default function App() {
           hidden={!sidebarOpen || !hasVersion}
           aria-label="Ajustes do currículo"
         >
-          <Tabs value={tab} onValueChange={setTab} className="editor-tabs">
-            <TabsList className="w-full">
-              <TabsTrigger value="design">
-                <SlidersHorizontal size={14} /> Design
-              </TabsTrigger>
-              <TabsTrigger value="content">
-                <Code2 size={14} /> Conteúdo
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="design" className="tab-body">
-              <div className="panel-title">
-                <div>
-                  <h2>Diagramação</h2>
-                  <p>Tipografia, espaçamento e cores.</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Restaurar design padrão"
-                  title="Restaurar design padrão"
-                  onClick={() => update({ layout: { ...defaultLayout } })}
-                >
-                  <RotateCcw size={15} />
-                </Button>
+          <div className="design-panel">
+            <div className="panel-title">
+              <div>
+                <h2>Diagramação</h2>
+                <p>Tipografia, espaçamento e cores.</p>
               </div>
-              <fieldset className="control-group">
-                <legend>
-                  <Type size={15} /> Tipografia
-                </legend>
-                <Label htmlFor="font-family">Família da fonte</Label>
-                <div className="select-wrap">
-                  <select
-                    id="font-family"
-                    value={current.layout.fontFamily}
-                    onChange={(e) => setToken('fontFamily', e.target.value as Layout['fontFamily'])}
-                  >
-                    {fonts.map((f) => (
-                      <option key={f}>{f}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} />
-                </div>
-                <TokenControl
-                  name="Tamanho do texto"
-                  token="fontSize"
-                  unit="pt"
-                  layout={current.layout}
-                  onChange={setToken}
-                />
-                <TokenControl
-                  name="Altura da linha"
-                  token="lineHeight"
-                  unit="×"
-                  layout={current.layout}
-                  onChange={setToken}
-                />
-                <TokenControl
-                  name="Tamanho do nome"
-                  token="headingSize"
-                  unit="pt"
-                  layout={current.layout}
-                  onChange={setToken}
-                />
-              </fieldset>
-              <fieldset className="control-group">
-                <legend>
-                  <LayoutTemplate size={15} /> Espaçamento
-                </legend>
-                <TokenControl
-                  name="Margens da página"
-                  token="margin"
-                  unit="mm"
-                  layout={current.layout}
-                  onChange={setToken}
-                />
-                <TokenControl
-                  name="Entre seções"
-                  token="sectionGap"
-                  unit="px"
-                  layout={current.layout}
-                  onChange={setToken}
-                />
-                <TokenControl
-                  name="Entre parágrafos"
-                  token="paragraphGap"
-                  unit="px"
-                  layout={current.layout}
-                  onChange={setToken}
-                />
-              </fieldset>
-              <fieldset className="control-group">
-                <legend>
-                  <span className="palette-icon" /> Cores
-                </legend>
-                {(
-                  [
-                    ['accentColor', 'Destaque'],
-                    ['textColor', 'Texto'],
-                    ['paperColor', 'Papel'],
-                  ] as const
-                ).map(([key, label]) => (
-                  <div className="color-control" key={key}>
-                    <Label htmlFor={key}>{label}</Label>
-                    <div>
-                      <span>{current.layout[key].toUpperCase()}</span>
-                      <input
-                        id={key}
-                        type="color"
-                        value={current.layout[key]}
-                        onChange={(e) => setToken(key, e.target.value)}
-                        aria-label={`Cor de ${label.toLowerCase()}`}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </fieldset>
-              <details className="token-details">
-                <summary>
-                  <Code2 size={14} /> Ver tokens CSS
-                </summary>
-                <pre>
-                  {Object.entries(layoutCss(current.layout))
-                    .map(([k, v]) => `${k}: ${v};`)
-                    .join('\n')}
-                </pre>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    download(
-                      `${current.id}.tokens.css`,
-                      `.resume {\n${Object.entries(layoutCss(current.layout))
-                        .map(([k, v]) => `  ${k}: ${v};`)
-                        .join('\n')}\n}`,
-                      'text/css',
-                    )
-                  }
-                >
-                  Baixar tokens
-                </Button>
-              </details>
-            </TabsContent>
-            <TabsContent value="content" className="tab-body">
-              <div className="panel-title">
-                <div>
-                  <h2>Sua história em Markdown</h2>
-                  <p>O conteúdo muda. A prévia acompanha.</p>
-                </div>
-              </div>
-              <Label htmlFor="markdown">Conteúdo do currículo</Label>
-              <Textarea
-                id="markdown"
-                className="markdown-editor"
-                spellCheck={false}
-                value={current.markdown}
-                onChange={(e) => {
-                  if (e.target.value.length <= 250000) update({ markdown: e.target.value })
-                }}
-              />
-              <div className="editor-counter">
-                {current.markdown.split(/\s+/).filter(Boolean).length} palavras{' '}
-                <span>Markdown + GFM</span>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-4">
-                <Button variant="outline" size="sm" onClick={() => importRef.current?.click()}>
-                  <ArrowUpFromLine /> Importar .md
-                </Button>
-                <Button variant="outline" size="sm" onClick={exportSources}>
-                  <ArrowDownToLine /> Baixar arquivos
-                </Button>
-              </div>
-              <Button variant="ghost" size="sm" className="mt-2" onClick={reloadFile}>
-                <RotateCcw /> Recarregar do arquivo
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Restaurar design padrão"
+                title="Restaurar design padrão"
+                onClick={() => update({ layout: { ...defaultLayout } })}
+              >
+                <RotateCcw size={15} />
               </Button>
-              <input
-                ref={importRef}
-                type="file"
-                accept=".md,text/markdown"
-                className="hidden"
-                aria-label="Importar arquivo Markdown"
-                onChange={(e) => {
-                  void importMarkdown(e.target.files?.[0])
-                  e.target.value = ''
-                }}
-              />
-              <div className="info-card">
-                <Code2 size={17} />
-                <p>
-                  Edite também <code>content/cv/{current.id}.md</code> no seu editor. Salvar aqui
-                  atualiza o arquivo ao rodar localmente.
-                </p>
+            </div>
+            <fieldset className="control-group">
+              <legend>
+                <Type size={15} /> Tipografia
+              </legend>
+              <Label htmlFor="font-family">Família da fonte</Label>
+              <div className="select-wrap">
+                <select
+                  id="font-family"
+                  value={current.layout.fontFamily}
+                  onChange={(e) => setToken('fontFamily', e.target.value as Layout['fontFamily'])}
+                >
+                  {fonts.map((f) => (
+                    <option key={f}>{f}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} />
               </div>
-            </TabsContent>
-          </Tabs>
+              <TokenControl
+                name="Tamanho do texto"
+                token="fontSize"
+                unit="pt"
+                layout={current.layout}
+                onChange={setToken}
+              />
+              <TokenControl
+                name="Altura da linha"
+                token="lineHeight"
+                unit="×"
+                layout={current.layout}
+                onChange={setToken}
+              />
+              <TokenControl
+                name="Tamanho do nome"
+                token="headingSize"
+                unit="pt"
+                layout={current.layout}
+                onChange={setToken}
+              />
+            </fieldset>
+            <fieldset className="control-group">
+              <legend>
+                <LayoutTemplate size={15} /> Espaçamento
+              </legend>
+              <TokenControl
+                name="Margens da página"
+                token="margin"
+                unit="mm"
+                layout={current.layout}
+                onChange={setToken}
+              />
+              <TokenControl
+                name="Entre seções"
+                token="sectionGap"
+                unit="px"
+                layout={current.layout}
+                onChange={setToken}
+              />
+              <TokenControl
+                name="Entre parágrafos"
+                token="paragraphGap"
+                unit="px"
+                layout={current.layout}
+                onChange={setToken}
+              />
+            </fieldset>
+            <fieldset className="control-group">
+              <legend>
+                <span className="palette-icon" /> Cores
+              </legend>
+              {(
+                [
+                  ['accentColor', 'Destaque'],
+                  ['textColor', 'Texto'],
+                  ['paperColor', 'Papel'],
+                ] as const
+              ).map(([key, label]) => (
+                <div className="color-control" key={key}>
+                  <Label htmlFor={key}>{label}</Label>
+                  <div>
+                    <span>{current.layout[key].toUpperCase()}</span>
+                    <input
+                      id={key}
+                      type="color"
+                      value={current.layout[key]}
+                      onChange={(e) => setToken(key, e.target.value)}
+                      aria-label={`Cor de ${label.toLowerCase()}`}
+                    />
+                  </div>
+                </div>
+              ))}
+            </fieldset>
+            <details className="token-details">
+              <summary>
+                <Code2 size={14} /> Ver tokens CSS
+              </summary>
+              <pre>
+                {Object.entries(layoutCss(current.layout))
+                  .map(([k, v]) => `${k}: ${v};`)
+                  .join('\n')}
+              </pre>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  download(
+                    `${current.id}.tokens.css`,
+                    `.resume {\n${Object.entries(layoutCss(current.layout))
+                      .map(([k, v]) => `  ${k}: ${v};`)
+                      .join('\n')}\n}`,
+                    'text/css',
+                  )
+                }
+              >
+                Baixar tokens
+              </Button>
+            </details>
+          </div>
         </aside>
 
         <main
@@ -744,6 +822,49 @@ export default function App() {
               aria-label="Zoom do currículo"
               style={{ width: 794 * scale }}
             >
+              {preview === 'pdf' && (
+                <fieldset className="selection-alignment" aria-label="Alinhar texto selecionado">
+                  {(
+                    [
+                      ['left', 'Alinhar à esquerda', AlignLeft],
+                      ['center', 'Centralizar texto', AlignCenter],
+                      ['right', 'Alinhar à direita', AlignRight],
+                      ['justify', 'Justificar texto', AlignJustify],
+                    ] as const
+                  ).map(([align, label, Icon]) => (
+                    <Button
+                      key={align}
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={label}
+                      title={
+                        selectedBlocks.length ? label : 'Selecione texto na página para alinhar'
+                      }
+                      disabled={!selectedBlocks.length}
+                      aria-pressed={
+                        selectedBlocks.length > 0 &&
+                        selectedBlocks.every(
+                          (selected) =>
+                            (current.layout.blockAlignments?.find(
+                              (block) =>
+                                block.start === selected.start &&
+                                block.end === selected.end &&
+                                (block.source === undefined ||
+                                  block.source === current.markdown.slice(block.start, block.end)),
+                            )?.align ??
+                              current.layout.textAlign ??
+                              'left') === align,
+                        )
+                      }
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => alignSelection(align)}
+                    >
+                      <Icon />
+                    </Button>
+                  ))}
+                  <span className="toolbar-divider" />
+                </fieldset>
+              )}
               <Button
                 variant="ghost"
                 size="icon-xs"
@@ -840,11 +961,18 @@ export default function App() {
               <article
                 ref={paperRef}
                 className="resume"
+                data-version={current.id}
                 style={
                   { ...layoutCss(current.layout), transform: `scale(${scale})` } as CSSProperties
                 }
               >
-                <Markdown remarkPlugins={[remarkGfm]}>{current.markdown}</Markdown>
+                <AlignmentContext.Provider
+                  value={{ layout: current.layout, markdown: current.markdown }}
+                >
+                  <Markdown remarkPlugins={[remarkGfm]} components={alignedComponents}>
+                    {current.markdown}
+                  </Markdown>
+                </AlignmentContext.Provider>
               </article>
             </div>
           </div>

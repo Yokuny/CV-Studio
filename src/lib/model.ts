@@ -1,6 +1,16 @@
 export const fonts = ['Arial', 'Georgia', 'Verdana', 'Times New Roman', 'Helvetica'] as const
+export const textAlignments = ['left', 'center', 'right', 'justify'] as const
+export type TextAlignment = (typeof textAlignments)[number]
+export interface BlockAlignment {
+  start: number
+  end: number
+  align: TextAlignment
+  source?: string
+}
 export interface Layout {
   fontFamily: (typeof fonts)[number]
+  textAlign?: (typeof textAlignments)[number]
+  blockAlignments?: BlockAlignment[]
   fontSize: number
   lineHeight: number
   sectionGap: number
@@ -19,6 +29,7 @@ export interface Resume {
 }
 export const defaultLayout: Layout = {
   fontFamily: 'Arial',
+  textAlign: 'left',
   fontSize: 10,
   lineHeight: 1.45,
   sectionGap: 16,
@@ -42,6 +53,24 @@ export function validLayout(value: unknown): value is Layout {
   const l = value as Record<string, unknown>
   return (
     fonts.includes(l.fontFamily as Layout['fontFamily']) &&
+    (l.textAlign === undefined ||
+      textAlignments.includes(l.textAlign as (typeof textAlignments)[number])) &&
+    (l.blockAlignments === undefined ||
+      (Array.isArray(l.blockAlignments) &&
+        l.blockAlignments.length <= 5000 &&
+        l.blockAlignments.every(
+          (block) =>
+            block &&
+            Number.isInteger(block.start) &&
+            Number.isInteger(block.end) &&
+            block.start >= 0 &&
+            block.end > block.start &&
+            block.end <= 250000 &&
+            (block.source === undefined ||
+              (typeof block.source === 'string' &&
+                block.source.length === block.end - block.start)) &&
+            textAlignments.includes(block.align),
+        ))) &&
     Object.entries(layoutRanges).every(
       ([key, [min, max]]) =>
         typeof l[key] === 'number' &&
@@ -69,6 +98,42 @@ export function validResume(value: unknown): value is Resume {
     validLayout(r.layout)
   )
 }
+
+export function remapBlockAlignments(
+  blocks: BlockAlignment[],
+  before: string,
+  after: string,
+): BlockAlignment[] {
+  let start = 0
+  while (start < before.length && start < after.length && before[start] === after[start]) start++
+  let oldEnd = before.length
+  let newEnd = after.length
+  while (oldEnd > start && newEnd > start && before[oldEnd - 1] === after[newEnd - 1]) {
+    oldEnd--
+    newEnd--
+  }
+  const delta = after.length - before.length
+  return blocks.flatMap((block) => {
+    if (block.source !== undefined && before.slice(block.start, block.end) !== block.source)
+      return []
+    if (block.end <= start) return [block]
+    if (block.start >= oldEnd)
+      return [{ ...block, start: block.start + delta, end: block.end + delta }]
+    // A change contained in one paragraph preserves its alignment. Removed or
+    // replaced blocks lose the override rather than applying it to other text.
+    if (start >= block.start && oldEnd <= block.end && newEnd > block.start)
+      return [
+        {
+          ...block,
+          end: block.end + delta,
+          ...(block.source !== undefined
+            ? { source: after.slice(block.start, block.end + delta) }
+            : {}),
+        },
+      ]
+    return []
+  })
+}
 export function slugify(name: string) {
   return name
     .normalize('NFD')
@@ -81,6 +146,7 @@ export function slugify(name: string) {
 export function layoutCss(layout: Layout) {
   return {
     '--cv-font-family': `"${layout.fontFamily}", serif`,
+    '--cv-text-align': layout.textAlign ?? 'left',
     '--cv-font-size': `${layout.fontSize}pt`,
     '--cv-line-height': layout.lineHeight,
     '--cv-section-gap': `${layout.sectionGap}px`,
