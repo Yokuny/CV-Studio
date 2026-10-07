@@ -382,36 +382,6 @@ export default function App() {
           </a>
         </div>
         <div className="preview-toolbar">
-          <div>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Diminuir zoom"
-              onClick={() => setZoom((z) => Math.max(0.35, z - 0.1))}
-            >
-              <Minus />
-            </Button>
-            <span className="zoom-value">
-              {Math.round((preview === 'pdf' ? scale : zoom) * 100)}%
-            </span>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Aumentar zoom"
-              onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))}
-            >
-              <Plus />
-            </Button>
-            <span className="toolbar-divider" />
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Ajustar prévia à tela"
-              onClick={() => setZoom(0.85)}
-            >
-              <ZoomIn />
-            </Button>
-          </div>
           <fieldset className="view-switch" aria-label="Tipo de visualização">
             <Button
               variant="ghost"
@@ -767,51 +737,54 @@ export default function App() {
               </Button>
             </div>
           )}
-          {hasVersion && preview === 'text' && (
-            <section className="markdown-preview no-print" aria-label={`Edição de ${current.name}`}>
-              <div className="markdown-preview-heading">
-                <Code2 size={16} />
-                <h1>{current.name}</h1>
-                <span>Edição</span>
-              </div>
-              <Textarea
-                className="source-editor"
-                aria-label="Editar código Markdown"
-                value={current.markdown}
-                onChange={(event) => update({ markdown: event.target.value })}
-                style={{ fontSize: 16 * zoom }}
-                spellCheck={false}
-              />
-            </section>
-          )}
-          {hasVersion && preview === 'markdown' && (
-            <section
-              className="markdown-preview rendered-preview no-print"
-              aria-label={`Markdown de ${current.name}`}
+          {hasVersion && (
+            <div
+              className="document-toolbar no-print"
+              role="toolbar"
+              aria-label="Zoom do currículo"
+              style={{ width: 794 * scale }}
             >
-              <div className="markdown-preview-heading">
-                <BookOpen size={16} />
-                <h1>{current.name}</h1>
-                <span>Markdown</span>
-              </div>
-              <Suspense
-                fallback={<p className="p-6 text-sm text-muted-foreground">Abrindo editor…</p>}
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                disabled={!hasVersion || zoom <= 0.35}
+                aria-label="Diminuir zoom"
+                onClick={() => setZoom((z) => Math.max(0.35, z - 0.1))}
               >
-                <MarkdownEditor
-                  key={current.id}
-                  value={current.markdown}
-                  onChange={(markdown) => update({ markdown })}
-                  fontSize={16 * zoom}
-                />
-              </Suspense>
-            </section>
+                <Minus />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                disabled={!hasVersion || zoom >= 1.5}
+                aria-label="Aumentar zoom"
+                onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))}
+              >
+                <Plus />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                disabled={!hasVersion}
+                aria-label="Restaurar zoom"
+                title="Restaurar zoom"
+                onClick={() => setZoom(0.85)}
+              >
+                <ZoomIn />
+              </Button>
+            </div>
           )}
-          <div className="paper-stage" hidden={!hasVersion}>
+          {hasVersion && (
             <div className="paper-info no-print" style={{ width: 794 * scale }}>
               <div className="paper-document">
                 <h1 title={current.name}>{current.name}</h1>
                 <span className="preview-badge">
-                  <span className="status-dot" /> Prévia ao vivo
+                  <span className="status-dot" />
+                  {preview === 'pdf'
+                    ? 'Prévia final · PDF'
+                    : preview === 'markdown'
+                      ? 'Markdown'
+                      : 'Edição'}
                 </span>
               </div>
               <div className="paper-metadata">
@@ -824,6 +797,42 @@ export default function App() {
                 </span>
               </div>
             </div>
+          )}
+          {hasVersion && preview === 'text' && (
+            <section
+              className="markdown-preview no-print"
+              style={{ ...layoutCss(current.layout), width: 794 * scale } as CSSProperties}
+              aria-label={`Edição de ${current.name}`}
+            >
+              <Textarea
+                className="source-editor"
+                aria-label="Editar código Markdown"
+                value={current.markdown}
+                onChange={(event) => update({ markdown: event.target.value })}
+                style={{ zoom: scale }}
+                spellCheck={false}
+              />
+            </section>
+          )}
+          {hasVersion && preview === 'markdown' && (
+            <section
+              className="markdown-preview rendered-preview no-print"
+              style={{ ...layoutCss(current.layout), width: 794 * scale } as CSSProperties}
+              aria-label={`Markdown de ${current.name}`}
+            >
+              <Suspense
+                fallback={<p className="p-6 text-sm text-muted-foreground">Abrindo editor…</p>}
+              >
+                <MarkdownEditor
+                  key={current.id}
+                  value={current.markdown}
+                  onChange={(markdown) => update({ markdown })}
+                  scale={scale}
+                />
+              </Suspense>
+            </section>
+          )}
+          <div className="paper-stage" hidden={!hasVersion}>
             <div
               className="paper-frame"
               style={{ width: 794 * scale, height: paperHeight * scale }}

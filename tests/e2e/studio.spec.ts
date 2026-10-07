@@ -314,15 +314,35 @@ test('alterna PDF, Markdown renderizado e Edição mantendo conteúdo e impress�
   await expect(page.locator('.markdown-rendered script')).toHaveCount(0)
   await expect(page.locator('.markdown-preview pre')).toHaveCount(0)
   await text.click()
-  const fontSize = await page
-    .locator('.source-editor')
-    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+  const pageWidth = (await page.locator('.source-editor').boundingBox())?.width
+  if (!pageWidth) throw new Error('Página de edição não encontrada')
   await page.getByRole('button', { name: 'Aumentar zoom', exact: true }).click()
-  expect(
-    await page
-      .locator('.source-editor')
-      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
-  ).toBeGreaterThan(fontSize)
+  expect((await page.locator('.source-editor').boundingBox())?.width).toBeGreaterThan(pageWidth)
+  await page.getByRole('button', { name: 'Restaurar zoom', exact: true }).click()
+  expect((await page.locator('.source-editor').boundingBox())?.width).toBeCloseTo(pageWidth, 0)
+  const zoomControls = page.getByRole('toolbar', { name: 'Zoom do currículo' })
+  await page.evaluate(() => window.scrollTo(0, 0))
+  const controlsBounds = await zoomControls.boundingBox()
+  const viewsBounds = await page.locator('.markdown-preview').boundingBox()
+  if (!controlsBounds || !viewsBounds) throw new Error('Controles de visualização não encontrados')
+  expect(controlsBounds.y + controlsBounds.height).toBeLessThanOrEqual(viewsBounds.y)
+  await markdown.click()
+  for (const property of [
+    'font-family',
+    'font-size',
+    'line-height',
+    'padding',
+    'color',
+    'background-color',
+  ]) {
+    const expected = await page
+      .locator('.resume')
+      .evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop), property)
+    await expect(page.locator('.markdown-rendered')).toHaveCSS(property, expected)
+  }
+  expect((await page.locator('.markdown-rendered').boundingBox())?.width).toBeCloseTo(pageWidth, 0)
+  await page.evaluate(() => window.scrollTo(0, 600))
+  await expect(zoomControls).toBeInViewport()
   await page.evaluate(() => {
     window.print = () => {
       document.documentElement.dataset.printRequested = 'true'
