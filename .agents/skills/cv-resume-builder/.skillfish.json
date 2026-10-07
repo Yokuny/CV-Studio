@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "cv-resume-builder",
+  "owner": "organvm-iv-taxis",
+  "repo": "a-i--skills",
+  "path": "distributions/claude/skills/cv-resume-builder",
+  "branch": "main",
+  "sha": "4452d60242a9b8b5f8a883716cb76c44f9b1b45b",
+  "source": "manual"
+}
