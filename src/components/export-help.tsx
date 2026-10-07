@@ -1,8 +1,12 @@
 import { Check, CircleHelp } from 'lucide-react'
 import { useState } from 'react'
+import { selectHasVersion, useResumes } from '@/store/resumes'
+import { useUi } from '@/store/ui'
 
-export function ExportHelp({ hidden }: { hidden: boolean }) {
+export function ExportHelp() {
   const [open, setOpen] = useState(false)
+  const hasVersion = useResumes(selectHasVersion)
+  const hidden = useUi((s) => !hasVersion || s.preview !== 'pdf')
   return (
     <>
       <div className="preview-footnote no-print" hidden={hidden}>

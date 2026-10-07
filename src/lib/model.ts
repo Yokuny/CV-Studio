@@ -15,6 +15,7 @@ export interface BlockAlignment {
   align: TextAlignment
   source?: string
 }
+export type BlockRange = Pick<BlockAlignment, 'start' | 'end'>
 export type FontFamily = (typeof fonts)[number]
 export const elementFontGroups = [
   {
@@ -351,7 +352,7 @@ export function findBlockAlignment(
 export function alignBlocks(
   layout: Layout,
   markdown: string,
-  blocks: Pick<BlockAlignment, 'start' | 'end'>[],
+  blocks: BlockRange[],
   align: TextAlignment,
 ): Layout {
   return {

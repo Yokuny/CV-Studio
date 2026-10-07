@@ -1,7 +1,9 @@
 import { ArrowDownToLine, ArrowUpFromLine, LoaderCircle, Save } from 'lucide-react'
 import { type ComponentProps, type ReactNode, useRef } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
+import { selectDeleting, selectDirty, selectHasVersion, useResumes } from '@/store/resumes'
 
 function ActionButton({
   label,
@@ -16,23 +18,18 @@ function ActionButton({
   )
 }
 
-export function ResumeActions({
-  disabled,
-  canImport,
-  canSave,
-  saving,
-  onImport,
-  onDownload,
-  onSave,
-}: {
-  disabled: boolean
-  canImport: boolean
-  canSave: boolean
-  saving: boolean
-  onImport: (file?: File) => void
-  onDownload: () => void
-  onSave: () => void
-}) {
+export function ResumeActions() {
+  const { saving, importMarkdown, exportSources, save } = useResumes(
+    useShallow(({ saving, importMarkdown, exportSources, save }) => ({
+      saving,
+      importMarkdown,
+      exportSources,
+      save,
+    })),
+  )
+  const disabled = useResumes((s) => !s.ready || !selectHasVersion(s))
+  const deleting = useResumes(selectDeleting)
+  const canSave = useResumes((s) => s.writable && selectDirty(s))
   const importRef = useRef<HTMLInputElement>(null)
   return (
     <div className="header-actions">
@@ -42,13 +39,13 @@ export function ResumeActions({
           title="Import Markdown"
           icon={<ArrowUpFromLine />}
           onClick={() => importRef.current?.click()}
-          disabled={disabled || !canImport}
+          disabled={disabled || deleting}
         />
         <ActionButton
           label="Download"
           title="Download source files"
           icon={<ArrowDownToLine />}
-          onClick={onDownload}
+          onClick={exportSources}
           disabled={disabled}
         />
         <ActionButton
@@ -59,8 +56,8 @@ export function ResumeActions({
               {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
             </span>
           }
-          onClick={onSave}
-          disabled={disabled || !canSave}
+          onClick={save}
+          disabled={disabled || !canSave || saving || deleting}
         />
         <ActionButton
           className="ml-1 rounded-md! shadow-none!"
@@ -79,7 +76,7 @@ export function ResumeActions({
         className="hidden"
         aria-label="Importar arquivo Markdown"
         onChange={(e) => {
-          onImport(e.target.files?.[0])
+          void importMarkdown(e.target.files?.[0])
           e.target.value = ''
         }}
       />

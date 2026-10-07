@@ -1,7 +1,7 @@
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight } from 'lucide-react'
 import { IconButton } from '@/components/icon-button'
-import type { BlockRange } from '@/hooks/use-block-selection'
-import { findBlockAlignment, type Layout, type TextAlignment } from '@/lib/model'
+import { type BlockRange, findBlockAlignment } from '@/lib/model'
+import { selectCurrent, useResumes } from '@/store/resumes'
 
 const alignments = [
   ['left', 'Alinhar à esquerda', AlignLeft],
@@ -10,17 +10,9 @@ const alignments = [
   ['justify', 'Justificar texto', AlignJustify],
 ] as const
 
-export function AlignmentControls({
-  layout,
-  markdown,
-  selectedBlocks,
-  onAlign,
-}: {
-  layout: Layout
-  markdown: string
-  selectedBlocks: BlockRange[]
-  onAlign: (align: TextAlignment) => void
-}) {
+export function AlignmentControls({ selectedBlocks }: { selectedBlocks: BlockRange[] }) {
+  const { layout, markdown } = useResumes(selectCurrent)
+  const alignBlocks = useResumes((s) => s.alignBlocks)
   const hasSelection = selectedBlocks.length > 0
   const alignmentOf = ({ start, end }: BlockRange) =>
     findBlockAlignment(layout, markdown, start, end)?.align ?? layout.textAlign ?? 'left'
@@ -36,7 +28,7 @@ export function AlignmentControls({
             hasSelection && selectedBlocks.every((block) => alignmentOf(block) === align)
           }
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => onAlign(align)}
+          onClick={() => alignBlocks(selectedBlocks, align)}
         >
           <Icon />
         </IconButton>

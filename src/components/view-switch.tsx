@@ -1,7 +1,7 @@
 import { BookOpen, Code2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
-export type PreviewMode = 'pdf' | 'markdown' | 'text'
+import { selectHasVersion, useResumes } from '@/store/resumes'
+import { useUi } from '@/store/ui'
 
 const modes = [
   ['pdf', 'PDF', 'Visualizar currículo diagramado', FileText],
@@ -9,15 +9,10 @@ const modes = [
   ['text', 'Texto', 'Visualizar código para edição', Code2],
 ] as const
 
-export function ViewSwitch({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: PreviewMode
-  onChange: (mode: PreviewMode) => void
-  disabled: boolean
-}) {
+export function ViewSwitch() {
+  const preview = useUi((s) => s.preview)
+  const setPreview = useUi((s) => s.setPreview)
+  const disabled = useResumes((s) => !s.ready || !selectHasVersion(s))
   return (
     <div className="preview-toolbar">
       <fieldset className="view-switch" aria-label="Tipo de visualização">
@@ -27,10 +22,10 @@ export function ViewSwitch({
             variant="ghost"
             size="sm"
             aria-label={`Visualizar ${label}`}
-            aria-pressed={value === mode}
+            aria-pressed={preview === mode}
             title={title}
             disabled={disabled}
-            onClick={() => onChange(mode)}
+            onClick={() => setPreview(mode)}
           >
             <Icon /> {label}
           </Button>

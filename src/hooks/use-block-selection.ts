@@ -1,7 +1,5 @@
 import { type RefObject, useEffect, useState } from 'react'
-import type { BlockAlignment } from '@/lib/model'
-
-export type BlockRange = Pick<BlockAlignment, 'start' | 'end'>
+import type { BlockRange } from '@/lib/model'
 
 /** Tracks which Markdown blocks of the rendered paper intersect the text selection. */
 export function useBlockSelection(

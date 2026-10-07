@@ -1,5 +1,7 @@
 import { FileText } from 'lucide-react'
-import type { PreviewMode } from '@/components/view-switch'
+import { estimatePages, pageWidth } from '@/lib/page'
+import { selectCurrent, useResumes } from '@/store/resumes'
+import { type PreviewMode, selectScale, useUi } from '@/store/ui'
 
 const modeLabels: Record<PreviewMode, string> = {
   pdf: 'Prévia final · PDF',
@@ -7,19 +9,13 @@ const modeLabels: Record<PreviewMode, string> = {
   text: 'Edição',
 }
 
-export function PaperInfo({
-  name,
-  preview,
-  pages,
-  width,
-}: {
-  name: string
-  preview: PreviewMode
-  pages: number
-  width: number
-}) {
+export function PaperInfo() {
+  const { name, layout } = useResumes(selectCurrent)
+  const preview = useUi((s) => s.preview)
+  const scale = useUi(selectScale)
+  const pages = useUi((s) => estimatePages(s.metrics.paperHeight, layout.margin))
   return (
-    <div className="paper-info no-print" style={{ width }}>
+    <div className="paper-info no-print" style={{ width: pageWidth * scale }}>
       <div className="paper-document">
         <h1 title={name}>{name}</h1>
         <span className="preview-badge">

@@ -19,6 +19,7 @@ import {
   layoutCssDeclarations,
 } from '@/lib/model'
 import { download } from '@/lib/repository'
+import { selectCurrent, useResumes } from '@/store/resumes'
 
 const typographyTokens = [
   ['Tamanho do texto', 'fontSize', 'pt'],
@@ -51,15 +52,10 @@ function withOverride(
   return Object.keys(overrides).length ? { ...rest, [map]: overrides } : rest
 }
 
-export function DesignPanel({
-  id,
-  layout,
-  onChange,
-}: {
-  id: string
-  layout: Layout
-  onChange: (change: (layout: Layout) => Layout) => void
-}) {
+export function DesignPanel() {
+  const id = useResumes((s) => selectCurrent(s).id)
+  const layout = useResumes((s) => selectCurrent(s).layout)
+  const onChange = useResumes((s) => s.updateLayout)
   const setToken = <K extends keyof Layout>(key: K, value: Layout[K]) =>
     onChange((l) => ({ ...l, [key]: value }))
   const setElementFont = (key: ElementFont, value: FontFamily | '') =>

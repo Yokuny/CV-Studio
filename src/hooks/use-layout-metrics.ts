@@ -1,6 +1,7 @@
-import { type RefObject, useEffect, useState } from 'react'
+import { type RefObject, useEffect } from 'react'
+import { useUi } from '@/store/ui'
 
-/** Measures the app chrome and paper so the preview can scale and stick correctly. */
+/** Measures the app chrome and paper into the UI store so the preview can scale and stick. */
 export function useLayoutMetrics({
   header,
   tabs,
@@ -12,20 +13,19 @@ export function useLayoutMetrics({
   workspace: RefObject<HTMLElement | null>
   paper: RefObject<HTMLElement | null>
 }) {
-  const [paperHeight, setPaperHeight] = useState(1122)
-  const [availableWidth, setAvailableWidth] = useState(900)
-  const [headerHeight, setHeaderHeight] = useState(68)
-  const [actionHeight, setActionHeight] = useState(68)
   useEffect(() => {
     const paperEl = paper.current,
       workspaceEl = workspace.current,
       headerEl = header.current
     if (!paperEl || !workspaceEl || !headerEl) return
+    const { setMetrics } = useUi.getState()
     const observer = new ResizeObserver(() => {
-      if (paperEl.offsetHeight > 0) setPaperHeight(paperEl.offsetHeight)
-      setAvailableWidth(workspaceEl.clientWidth)
-      setActionHeight(headerEl.offsetHeight)
-      setHeaderHeight(headerEl.offsetHeight + (tabs.current?.offsetHeight ?? 0))
+      setMetrics({
+        ...(paperEl.offsetHeight > 0 ? { paperHeight: paperEl.offsetHeight } : {}),
+        availableWidth: workspaceEl.clientWidth,
+        actionHeight: headerEl.offsetHeight,
+        headerHeight: headerEl.offsetHeight + (tabs.current?.offsetHeight ?? 0),
+      })
     })
     observer.observe(paperEl)
     observer.observe(workspaceEl)
@@ -33,5 +33,4 @@ export function useLayoutMetrics({
     if (tabs.current) observer.observe(tabs.current)
     return () => observer.disconnect()
   }, [header, tabs, workspace, paper])
-  return { paperHeight, availableWidth, headerHeight, actionHeight }
 }

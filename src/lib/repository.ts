@@ -1,6 +1,11 @@
 import { type Resume, validResume } from './model'
 
 export type Version = Resume & { revision: string | null }
+/** Serializes a version without its revision, to compare against the stored copy. */
+export function snapshot(v: Version) {
+  const { revision: _revision, ...data } = v
+  return JSON.stringify(data)
+}
 export async function loadVersions(): Promise<{ versions: Version[]; writable: boolean }> {
   try {
     const response = await fetch('/api/resumes')

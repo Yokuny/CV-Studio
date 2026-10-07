@@ -12,20 +12,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { slugify } from '@/lib/model'
+import { selectCurrent, selectHasVersion, useResumes } from '@/store/resumes'
+import { useUi } from '@/store/ui'
 
-export function NewVersionDialog({
-  open,
-  onOpenChange,
-  sourceName,
-  onCreate,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  /** Name of the version being copied, or undefined when starting from scratch. */
-  sourceName?: string
-  /** Returns whether the version was created. */
-  onCreate: (name: string) => boolean
-}) {
+export function NewVersionDialog() {
+  const open = useUi((s) => s.newVersionOpen)
+  const onOpenChange = useUi((s) => s.setNewVersionOpen)
+  const sourceName = useResumes((s) => (selectHasVersion(s) ? selectCurrent(s).name : undefined))
+  const onCreate = useResumes((s) => s.create)
   const [name, setName] = useState('')
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

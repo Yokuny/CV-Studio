@@ -8,8 +8,10 @@ import {
 } from 'react'
 import Markdown, { type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { defaultLayout, findBlockAlignment, type Layout, layoutCss } from '@/lib/model'
+import { defaultLayout, findBlockAlignment, layoutCss } from '@/lib/model'
 import { pageWidth } from '@/lib/page'
+import { selectCurrent, selectHasVersion, useResumes } from '@/store/resumes'
+import { selectScale, useUi } from '@/store/ui'
 
 const AlignmentContext = createContext({ layout: defaultLayout, markdown: '' })
 
@@ -39,30 +41,18 @@ const alignedComponents = {
   h6: alignedBlock('h6'),
 }
 
-export function ResumePaper({
-  ref,
-  versionId,
-  markdown,
-  layout,
-  scale,
-  height,
-  hidden,
-}: {
-  ref?: Ref<HTMLElement>
-  versionId: string
-  markdown: string
-  layout: Layout
-  scale: number
-  height: number
-  hidden: boolean
-}) {
+export function ResumePaper({ ref }: { ref?: Ref<HTMLElement> }) {
+  const { id, markdown, layout } = useResumes(selectCurrent)
+  const hidden = useResumes((s) => !selectHasVersion(s))
+  const scale = useUi(selectScale)
+  const height = useUi((s) => s.metrics.paperHeight)
   return (
     <div className="paper-stage" hidden={hidden}>
       <div className="paper-frame" style={{ width: pageWidth * scale, height: height * scale }}>
         <article
           ref={ref}
           className="resume"
-          data-version={versionId}
+          data-version={id}
           style={{ ...layoutCss(layout), transform: `scale(${scale})` } as CSSProperties}
         >
           <AlignmentContext.Provider value={{ layout, markdown }}>

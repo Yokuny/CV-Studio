@@ -6,6 +6,7 @@ React/TypeScript, Vite, Tailwind v4, shadcn/ui e `react-markdown` + `remark-gfm`
 - Versões ficam em `content/cv/<slug>.md`; layout em `<slug>.layout.json`; nome em `<slug>.meta.json`.
 - Para adaptar por vaga, leia `.agents/skills/cv-tailor/SKILL.md`. Para revisar, leia `.agents/skills/cv-review/SKILL.md`.
 - Não invente datas, métricas, certificados, links ou tecnologias. Preserve o base quando criar uma versão.
+- Estado global em `src/store` (zustand); componentes leem a store com seletores em vez de receber props. `localStorage` só via `persist` em `src/store/persistence.ts`, que mantém as chaves `cv-studio:drafts:v1` e `cv-studio:hidden-versions:v1` como arrays.
 - Markdown funciona sem HTML. Tokens e faixas válidas estão em `src/lib/model.ts`.
 - A API em `server/resumes.ts` existe apenas no Vite local. Escrita é restrita a `content/cv` e origem local. O build estático usa arquivos incluídos no bundle; rascunhos não são commits.
 - Use CLI ou MCP oficial do shadcn para componentes; mantenha imports de `cn` em `@/lib/utils`. MCP em `.mcp.json` (Claude) e `.codex/config.toml` (Codex, projeto confiável), requer recarregar a sessão.

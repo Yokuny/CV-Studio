@@ -9,21 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { Version } from '@/lib/repository'
+import { selectDeleting, useResumes } from '@/store/resumes'
 
-export function DeleteVersionDialog({
-  version,
-  writable,
-  deleting,
-  onCancel,
-  onConfirm,
-}: {
-  version: Version | null
-  writable: boolean
-  deleting: boolean
-  onCancel: () => void
-  onConfirm: () => Promise<void>
-}) {
+export function DeleteVersionDialog() {
+  const version = useResumes((s) => s.closing)
+  const writable = useResumes((s) => s.writable)
+  const deleting = useResumes(selectDeleting)
+  const onCancel = useResumes((s) => s.cancelClose)
+  const onConfirm = useResumes((s) => s.confirmClose)
   const [error, setError] = useState('')
   useEffect(() => {
     if (version) setError('')

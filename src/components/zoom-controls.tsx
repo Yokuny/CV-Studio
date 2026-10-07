@@ -1,34 +1,20 @@
 import { Minus, Plus, ZoomIn } from 'lucide-react'
 import { IconButton } from '@/components/icon-button'
+import { maxZoom, minZoom, useUi } from '@/store/ui'
 
-export const defaultZoom = 0.85
-const minZoom = 0.35
-const maxZoom = 1.5
-
-export function ZoomControls({
-  zoom,
-  onChange,
-}: {
-  zoom: number
-  onChange: (update: (zoom: number) => number) => void
-}) {
+export function ZoomControls() {
+  const zoom = useUi((s) => s.zoom)
+  const zoomBy = useUi((s) => s.zoomBy)
+  const resetZoom = useUi((s) => s.resetZoom)
   return (
     <>
-      <IconButton
-        label="Diminuir zoom"
-        disabled={zoom <= minZoom}
-        onClick={() => onChange((z) => Math.max(minZoom, z - 0.1))}
-      >
+      <IconButton label="Diminuir zoom" disabled={zoom <= minZoom} onClick={() => zoomBy(-0.1)}>
         <Minus />
       </IconButton>
-      <IconButton
-        label="Aumentar zoom"
-        disabled={zoom >= maxZoom}
-        onClick={() => onChange((z) => Math.min(maxZoom, z + 0.1))}
-      >
+      <IconButton label="Aumentar zoom" disabled={zoom >= maxZoom} onClick={() => zoomBy(0.1)}>
         <Plus />
       </IconButton>
-      <IconButton label="Restaurar zoom" onClick={() => onChange(() => defaultZoom)}>
+      <IconButton label="Restaurar zoom" onClick={resetZoom}>
         <ZoomIn />
       </IconButton>
     </>
