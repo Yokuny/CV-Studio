@@ -23,18 +23,20 @@ content/cv/
   base.layout.json       # tokens de design
   <slug>.md              # versões criadas por vaga
   <slug>.layout.json
-  <slug>.meta.json        # nome da versão e descrição da vaga
+  <slug>.meta.json        # nome da versão
 ```
 
 `react-markdown` + `remark-gfm` renderizam títulos, listas, links e tabelas; HTML bruto não é executado. Conteúdo não fica no React. Variáveis CSS controlam fontes, altura de linha, tamanho do nome, margens, espaçamento e cores. Os tokens podem ser baixados em CSS.
 
 ## PDF
 
+No header, antes do zoom, alterne entre **PDF** (currículo diagramado), **Markdown** (títulos, listas, links e tabelas renderizados) e **Edição** (código do arquivo aberto). O zoom ajusta a folha ou o tamanho do conteúdo nas outras visualizações. Ambos são editáveis: **Markdown** permite escrever no conteúdo formatado e aplicar títulos, negrito e listas; **Edição** permite alterar o código diretamente. Os dois atualizam a mesma versão, incluindo o editor lateral e a prévia PDF. O editor visual usa [Tiptap com suporte Markdown](https://tiptap.dev/docs/editor/markdown/getting-started/basic-usage). A exportação sempre imprime o currículo diagramado, inclusive quando o Markdown está visível.
+
 Clique **Exportar PDF**, escolha **Salvar como PDF**, **A4**, escala **100%** e desative cabeçalhos/rodapés do navegador. Ative gráficos de plano de fundo para papel colorido. O PDF preserva seleção de texto e links. A estimativa de páginas da prévia contínua pode diferir da impressão; confira a paginação final.
 
 ## IA
 
-Cole requisitos e stack na aba **Vaga**, copie o prompt e use no Codex/Claude deste repositório. A interface prepara o contexto; não executa chamadas de IA. Skills em `.agents/skills/cv-tailor` e `.agents/skills/cv-review`, orientadas pelo `AGENTS.md`. Em clientes sem descoberta dessa pasta, leia diretamente o `SKILL.md`.
+Para personalizar por vaga, envie os requisitos e a stack diretamente ao Codex/Claude deste repositório. Skills em `.agents/skills/cv-tailor` e `.agents/skills/cv-review`, orientadas pelo `AGENTS.md`. Em clientes sem descoberta dessa pasta, leia diretamente o `SKILL.md`.
 
 Exemplo: “Use a skill cv-tailor. Adapte para uma vaga backend Node.js/AWS/mensageria com esta descrição: […]. Crie uma versão, preserve o base e explique requisitos sem evidência.”
 

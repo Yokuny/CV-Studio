@@ -1,11 +1,11 @@
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  BookOpen,
   Check,
   ChevronDown,
   CircleHelp,
   Code2,
-  Copy,
   FileText,
   LayoutTemplate,
   LoaderCircle,
@@ -16,12 +16,11 @@ import {
   RotateCcw,
   Save,
   SlidersHorizontal,
-  Sparkles,
   Type,
   X,
   ZoomIn,
 } from 'lucide-react'
-import { type CSSProperties, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { NumberField } from '@/components/number-field'
@@ -39,7 +38,6 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  adaptationPrompt,
   defaultLayout,
   fonts,
   type Layout,
@@ -48,14 +46,9 @@ import {
   slugify,
   validResume,
 } from '@/lib/model'
-import {
-  bundledVersions,
-  deleteVersion,
-  download,
-  loadVersions,
-  saveVersion,
-  type Version,
-} from '@/lib/repository'
+import { deleteVersion, download, loadVersions, saveVersion, type Version } from '@/lib/repository'
+
+const MarkdownEditor = lazy(() => import('@/components/markdown-editor'))
 
 const draftKey = 'cv-studio:drafts:v1'
 const hiddenKey = 'cv-studio:hidden-versions:v1'
@@ -63,7 +56,6 @@ const emptyVersion: Version = {
   id: '',
   name: 'Novo currículo',
   markdown: '# Seu nome\n\n',
-  job: '',
   layout: defaultLayout,
   revision: null,
 }
@@ -79,12 +71,20 @@ function readDrafts(): Version[] {
   try {
     const value = JSON.parse(localStorage.getItem(draftKey) ?? '[]')
     return Array.isArray(value)
-      ? (value.filter(
-          (v) =>
-            validResume(v) &&
-            'revision' in v &&
-            (v.revision === null || typeof v.revision === 'string'),
-        ) as Version[])
+      ? (
+          value.filter(
+            (v) =>
+              validResume(v) &&
+              'revision' in v &&
+              (v.revision === null || typeof v.revision === 'string'),
+          ) as Version[]
+        ).map(({ id, name, markdown, layout, revision }) => ({
+          id,
+          name,
+          markdown,
+          layout,
+          revision,
+        }))
       : []
   } catch {
     return []
@@ -97,7 +97,7 @@ function snapshot(v: Version) {
 }
 
 export default function App() {
-  const [versions, setVersions] = useState<Version[]>(bundledVersions)
+  const [versions, setVersions] = useState<Version[]>([])
   const [activeId, setActiveId] = useState('base')
   const [saved, setSaved] = useState<Record<string, string>>({})
   const [writable, setWritable] = useState(false)
@@ -110,6 +110,7 @@ export default function App() {
   const [deleteError, setDeleteError] = useState('')
   const [versionName, setVersionName] = useState('')
   const [tab, setTab] = useState('design')
+  const [preview, setPreview] = useState<'pdf' | 'markdown' | 'text'>('pdf')
   const [zoom, setZoom] = useState(0.85)
   const [paperHeight, setPaperHeight] = useState(1122)
   const [availableWidth, setAvailableWidth] = useState(900)
@@ -181,7 +182,7 @@ export default function App() {
       header = headerRef.current
     if (!paper || !workspace || !header) return
     const observer = new ResizeObserver(() => {
-      setPaperHeight(paper.offsetHeight)
+      if (paper.offsetHeight > 0) setPaperHeight(paper.offsetHeight)
       setAvailableWidth(workspace.clientWidth)
       setActionHeight(header.offsetHeight)
       setHeaderHeight(header.offsetHeight + (tabsRef.current?.offsetHeight ?? 0))
@@ -312,15 +313,6 @@ export default function App() {
       setNotice('Não foi possível ler o arquivo.')
     }
   }
-  async function copyPrompt() {
-    try {
-      await navigator.clipboard.writeText(adaptationPrompt(current))
-      setNotice('Prompt copiado. Cole na conversa com a IA deste repositório.')
-    } catch {
-      download(`${current.id}.prompt.md`, adaptationPrompt(current), 'text/markdown')
-      setNotice('Prompt baixado; o navegador não permitiu copiar.')
-    }
-  }
   async function reloadFile() {
     if (
       dirty &&
@@ -348,7 +340,7 @@ export default function App() {
     )
     download(
       `${current.id}.meta.json`,
-      JSON.stringify({ name: current.name, job: current.job }, null, 2),
+      JSON.stringify({ name: current.name }, null, 2),
       'application/json',
     )
     setNotice('Arquivos baixados. Coloque-os em content/cv para incluir esta versão no Git.')
@@ -399,7 +391,9 @@ export default function App() {
             >
               <Minus />
             </Button>
-            <span className="zoom-value">{Math.round(scale * 100)}%</span>
+            <span className="zoom-value">
+              {Math.round((preview === 'pdf' ? scale : zoom) * 100)}%
+            </span>
             <Button
               variant="ghost"
               size="icon-xs"
@@ -418,6 +412,41 @@ export default function App() {
               <ZoomIn />
             </Button>
           </div>
+          <fieldset className="view-switch" aria-label="Tipo de visualização">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Visualizar PDF"
+              aria-pressed={preview === 'pdf'}
+              title="Visualizar currículo diagramado"
+              disabled={!ready || !hasVersion}
+              onClick={() => setPreview('pdf')}
+            >
+              <FileText /> PDF
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Visualizar Markdown"
+              aria-pressed={preview === 'markdown'}
+              title="Visualizar Markdown renderizado"
+              disabled={!ready || !hasVersion}
+              onClick={() => setPreview('markdown')}
+            >
+              <BookOpen /> Markdown
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Visualizar Edição"
+              aria-pressed={preview === 'text'}
+              title="Visualizar código para edição"
+              disabled={!ready || !hasVersion}
+              onClick={() => setPreview('text')}
+            >
+              <Code2 /> Edição
+            </Button>
+          </fieldset>
         </div>
         <div className="header-actions">
           <Button
@@ -429,11 +458,11 @@ export default function App() {
             <span className="inline-flex">
               {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
             </span>
-            <span className="button-label">Salvar versão</span>
+            <span className="button-label">Salvar</span>
           </Button>
           <Button onClick={() => window.print()} disabled={!ready || !hasVersion}>
             <ArrowDownToLine />
-            <span>Exportar PDF</span>
+            <span>Exportar</span>
           </Button>
         </div>
       </header>
@@ -532,9 +561,6 @@ export default function App() {
               </TabsTrigger>
               <TabsTrigger value="content">
                 <Code2 size={14} /> Conteúdo
-              </TabsTrigger>
-              <TabsTrigger value="job">
-                <Sparkles size={14} /> Vaga
               </TabsTrigger>
             </TabsList>
             <TabsContent value="design" className="tab-body">
@@ -721,41 +747,11 @@ export default function App() {
                 </p>
               </div>
             </TabsContent>
-            <TabsContent value="job" className="tab-body">
-              <div className="panel-title">
-                <div>
-                  <h2>A próxima oportunidade</h2>
-                  <p>Prepare o contexto para personalizar com IA.</p>
-                </div>
-              </div>
-              <Label htmlFor="job-description">O que a vaga pede?</Label>
-              <Textarea
-                id="job-description"
-                className="job-editor"
-                placeholder="Cole a descrição da vaga, a stack e as principais responsabilidades…"
-                value={current.job}
-                maxLength={50000}
-                onChange={(e) => update({ job: e.target.value })}
-              />
-              <Button className="w-full mt-4" disabled={!current.job.trim()} onClick={copyPrompt}>
-                <Copy /> Copiar prompt para IA
-              </Button>
-              <div className="info-card">
-                <Sparkles size={18} />
-                <p>
-                  A skill <strong>cv-tailor</strong> orienta a IA a adaptar seu Markdown com fatos
-                  reais. Cole o prompt no Codex ou Claude; depois recarregue a versão salva.
-                </p>
-              </div>
-              <p className="small-note">
-                Este botão prepara o prompt. A interface não chama um modelo de IA.
-              </p>
-            </TabsContent>
           </Tabs>
         </aside>
 
         <main
-          className="workspace"
+          className={`workspace ${preview !== 'pdf' ? 'source-view' : ''}`}
           ref={workspaceRef}
           id="resume-panel"
           role="tabpanel"
@@ -770,6 +766,45 @@ export default function App() {
                 <Plus /> Nova Versão
               </Button>
             </div>
+          )}
+          {hasVersion && preview === 'text' && (
+            <section className="markdown-preview no-print" aria-label={`Edição de ${current.name}`}>
+              <div className="markdown-preview-heading">
+                <Code2 size={16} />
+                <h1>{current.name}</h1>
+                <span>Edição</span>
+              </div>
+              <Textarea
+                className="source-editor"
+                aria-label="Editar código Markdown"
+                value={current.markdown}
+                onChange={(event) => update({ markdown: event.target.value })}
+                style={{ fontSize: 16 * zoom }}
+                spellCheck={false}
+              />
+            </section>
+          )}
+          {hasVersion && preview === 'markdown' && (
+            <section
+              className="markdown-preview rendered-preview no-print"
+              aria-label={`Markdown de ${current.name}`}
+            >
+              <div className="markdown-preview-heading">
+                <BookOpen size={16} />
+                <h1>{current.name}</h1>
+                <span>Markdown</span>
+              </div>
+              <Suspense
+                fallback={<p className="p-6 text-sm text-muted-foreground">Abrindo editor…</p>}
+              >
+                <MarkdownEditor
+                  key={current.id}
+                  value={current.markdown}
+                  onChange={(markdown) => update({ markdown })}
+                  fontSize={16 * zoom}
+                />
+              </Suspense>
+            </section>
           )}
           <div className="paper-stage" hidden={!hasVersion}>
             <div className="paper-info no-print" style={{ width: 794 * scale }}>
@@ -804,14 +839,14 @@ export default function App() {
               </article>
             </div>
           </div>
-          <div className="preview-footnote no-print" hidden={!hasVersion}>
+          <div className="preview-footnote no-print" hidden={!hasVersion || preview !== 'pdf'}>
             <Check size={14} />
             <span>Texto selecionável no PDF · Layout em uma coluna</span>
             <button type="button" onClick={() => setHelp(!help)} aria-expanded={help}>
               <CircleHelp size={14} /> Sobre a exportação
             </button>
           </div>
-          {help && (
+          {help && hasVersion && preview === 'pdf' && (
             <div className="print-help no-print">
               Na janela de impressão, selecione <strong>Salvar como PDF</strong>, papel A4, escala
               100% e desative cabeçalhos e rodapés. Ative gráficos de plano de fundo para preservar

@@ -5,7 +5,8 @@ import type { Plugin } from 'vite'
 import { defaultLayout, type Resume, validLayout, validResume } from '../src/lib/model'
 
 export function revision(resume: Resume) {
-  return createHash('sha256').update(JSON.stringify(resume)).digest('hex')
+  const { id, markdown, layout, name } = resume
+  return createHash('sha256').update(JSON.stringify({ id, markdown, layout, name })).digest('hex')
 }
 export function resumeApi(): Plugin {
   let root: string
@@ -39,6 +40,7 @@ export function resumeApi(): Plugin {
           if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Arquivo inválido.')
           return fs.readFile(target, 'utf8')
         }
+        const legacyRevisions = new Map<string, string>()
         const load = async (id: string): Promise<Resume> => {
           const markdown = await readSafe(`${id}.md`)
           let layout = defaultLayout
@@ -54,7 +56,14 @@ export function resumeApi(): Plugin {
           } catch (e) {
             if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
           }
-          const resume = { id, markdown, layout, ...meta }
+          // Old drafts can still save safely after the job field is retired.
+          legacyRevisions.set(
+            id,
+            createHash('sha256')
+              .update(JSON.stringify({ id, markdown, layout, ...meta }))
+              .digest('hex'),
+          )
+          const resume = { id, markdown, layout, name: meta.name }
           if (!validResume(resume)) throw new Error('Versão inválida no repositório.')
           return resume
         }
@@ -113,7 +122,10 @@ export function resumeApi(): Plugin {
             } catch (e) {
               if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
             }
-            if ((current ? revision(current) : null) !== expectedRevision) {
+            if (
+              (current ? revision(current) : null) !== expectedRevision &&
+              !(current && legacyRevisions.get(targetId) === expectedRevision)
+            ) {
               reply(409, {
                 error:
                   'Esta versão mudou no disco. Baixe seu Markdown antes de recarregar para comparar as alterações.',
@@ -140,10 +152,7 @@ export function resumeApi(): Plugin {
             const files = [
               [`${resume.id}.md`, resume.markdown],
               [`${resume.id}.layout.json`, `${JSON.stringify(resume.layout, null, 2)}\n`],
-              [
-                `${resume.id}.meta.json`,
-                `${JSON.stringify({ name: resume.name, job: resume.job }, null, 2)}\n`,
-              ],
+              [`${resume.id}.meta.json`, `${JSON.stringify({ name: resume.name }, null, 2)}\n`],
             ]
             for (const [filename, data] of files) {
               const target = path.join(root, filename)

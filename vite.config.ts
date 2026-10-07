@@ -9,7 +9,13 @@ export default defineConfig({
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
   build: {
     rollupOptions: {
-      output: { manualChunks: { markdown: ['react-markdown', 'remark-gfm'], ui: ['radix-ui'] } },
+      output: {
+        manualChunks: {
+          markdown: ['react-markdown', 'remark-gfm'],
+          ui: ['radix-ui'],
+          'editor-engine': ['@tiptap/pm/view', '@tiptap/pm/state'],
+        },
+      },
     },
   },
   test: { include: ['tests/**/*.test.ts'] },

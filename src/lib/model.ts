@@ -16,7 +16,6 @@ export interface Resume {
   name: string
   markdown: string
   layout: Layout
-  job: string
 }
 export const defaultLayout: Layout = {
   fontFamily: 'Arial',
@@ -67,8 +66,6 @@ export function validResume(value: unknown): value is Resume {
     r.name.length <= 120 &&
     typeof r.markdown === 'string' &&
     r.markdown.length <= 250000 &&
-    typeof r.job === 'string' &&
-    r.job.length <= 50000 &&
     validLayout(r.layout)
   )
 }
@@ -94,7 +91,4 @@ export function layoutCss(layout: Layout) {
     '--cv-text': layout.textColor,
     '--cv-paper': layout.paperColor,
   }
-}
-export function adaptationPrompt(resume: Resume) {
-  return `Use a skill cv-tailor deste repositório. Leia content/cv/base.md e preserve os fatos. Adapte o currículo para a vaga abaixo, usando palavras-chave apenas quando sustentadas por experiências reais. Não invente tecnologias, métricas, datas ou cargos. Salve o resultado em content/cv/${resume.id === 'base' ? '<slug-da-vaga>' : resume.id}.md e mantenha os ajustes de layout separados. Liste requisitos atendidos, lacunas e alterações para revisão.\n\nVAGA\n${resume.job}\n\nCURRÍCULO ATUAL\n${resume.markdown}`
 }

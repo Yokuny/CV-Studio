@@ -4,7 +4,7 @@
 
 **Contexto:** manter fatos profissionais em Git e permitir personalização futura por IA.
 
-**Decisão:** Markdown GFM em `content/cv`, renderizado por `react-markdown` sem HTML bruto. Um arquivo por variante, com base preservada. JSON separado guarda layout e contexto da vaga.
+**Decisão:** Markdown GFM em `content/cv`, renderizado por `react-markdown` sem HTML bruto. Um arquivo por variante, com base preservada. JSON separado guarda layout e nome da versão.
 
 **Consequência:** conteúdo não é duplicado em JSX. O histórico depende de commits; o build estático precisa ser reconstruído após alterações.
 
@@ -12,7 +12,7 @@
 
 **Contexto:** uma SPA hospedada não grava diretamente no checkout do Git.
 
-**Decisão:** plugin Vite fornece GET/POST local. Escrita valida slug, conteúdo e tokens, restringe origem/Host, rejeita links simbólicos e verifica revisão SHA-256 antes de sobrescrever. Rascunhos ficam no localStorage. Em build estático, o usuário baixa os arquivos e os coloca no repositório.
+**Decisão:** plugin Vite fornece GET/POST/DELETE local. Escrita valida slug, conteúdo e tokens, restringe origem/Host, rejeita links simbólicos e verifica revisão SHA-256 antes de sobrescrever. Rascunhos ficam no localStorage. Em build estático, o usuário baixa os arquivos e os coloca no repositório.
 
 **Consequência:** não precisa de credenciais GitHub. Salvar não faz commit/push. Alterações externas são detectadas; pode-se baixar o rascunho e recarregar o arquivo. Cada arquivo tem rename atômico; os três não formam uma transação conjunta se o processo falhar.
 
@@ -28,7 +28,7 @@
 
 **Contexto:** adaptação por vaga será feita com IA.
 
-**Decisão:** skills `cv-tailor` e `cv-review`. Aba Vaga prepara prompt para Codex/Claude; interface não chama modelos nem exige chaves.
+**Decisão:** skills `cv-tailor` e `cv-review`. A personalização acontece na conversa com Codex/Claude. A interface não possui aba Vaga, não gera prompts e não chama modelos nem exige chaves.
 
 **Consequência:** fatos continuam sob revisão do candidato e alterações ficam explícitas no Git.
 
