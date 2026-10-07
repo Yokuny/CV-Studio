@@ -6,17 +6,17 @@ export const fonts = [
   'Helvetica',
   'Courier New',
   'Consolas',
-] as const
-export const textAlignments = ['left', 'center', 'right', 'justify'] as const
-export type TextAlignment = (typeof textAlignments)[number]
+] as const;
+export const textAlignments = ['left', 'center', 'right', 'justify'] as const;
+export type TextAlignment = (typeof textAlignments)[number];
 export interface BlockAlignment {
-  start: number
-  end: number
-  align: TextAlignment
-  source?: string
+  start: number;
+  end: number;
+  align: TextAlignment;
+  source?: string;
 }
-export type BlockRange = Pick<BlockAlignment, 'start' | 'end'>
-export type FontFamily = (typeof fonts)[number]
+export type BlockRange = Pick<BlockAlignment, 'start' | 'end'>;
+export type FontFamily = (typeof fonts)[number];
 export const elementFontGroups = [
   {
     label: 'Títulos',
@@ -57,12 +57,12 @@ export const elementFontGroups = [
       { key: 'code-block', label: 'Blocos de código' },
     ],
   },
-] as const
-export type ElementFont = (typeof elementFontGroups)[number]['elements'][number]['key']
-export const elementFonts = elementFontGroups.flatMap((group) => [...group.elements])
+] as const;
+export type ElementFont = (typeof elementFontGroups)[number]['elements'][number]['key'];
+export const elementFonts = elementFontGroups.flatMap((group) => [...group.elements]);
 export function fontFamilyCss(font: FontFamily) {
-  const fallback = font === 'Courier New' || font === 'Consolas' ? 'monospace' : 'serif'
-  return `"${font}", ${fallback}`
+  const fallback = font === 'Courier New' || font === 'Consolas' ? 'monospace' : 'serif';
+  return `"${font}", ${fallback}`;
 }
 
 // Optional element colors preserve the inheritance of existing layouts.
@@ -127,18 +127,18 @@ export const elementColorGroups = [
       },
     ],
   },
-] as const
-export type ElementColor = (typeof elementColorGroups)[number]['colors'][number]['key']
-export const elementColors = elementColorGroups.flatMap((group) => [...group.colors])
+] as const;
+export type ElementColor = (typeof elementColorGroups)[number]['colors'][number]['key'];
+export const elementColors = elementColorGroups.flatMap((group) => [...group.colors]);
 
 export function elementColorValue(layout: Layout, key: ElementColor): string {
-  const override = layout.elementColors?.[key]
-  if (override) return override
-  const token = elementColors.find((color) => color.key === key)
-  if (!token) return layout.textColor
-  if ('fixed' in token) return token.fixed
-  const base = layout[token.base]
-  if (!('opacity' in token)) return base
+  const override = layout.elementColors?.[key];
+  if (override) return override;
+  const token = elementColors.find((color) => color.key === key);
+  if (!token) return layout.textColor;
+  if ('fixed' in token) return token.fixed;
+  const base = layout[token.base];
+  if (!('opacity' in token)) return base;
   // Show the effective default swatch for translucent borders and backgrounds.
   return `#${[1, 3, 5]
     .map((start) =>
@@ -149,30 +149,30 @@ export function elementColorValue(layout: Layout, key: ElementColor): string {
         .toString(16)
         .padStart(2, '0'),
     )
-    .join('')}`
+    .join('')}`;
 }
 
 export interface Layout {
-  elementColors?: Partial<Record<ElementColor, string>>
-  elementFonts?: Partial<Record<ElementFont, FontFamily>>
-  fontFamily: FontFamily
-  textAlign?: (typeof textAlignments)[number]
-  blockAlignments?: BlockAlignment[]
-  fontSize: number
-  lineHeight: number
-  sectionGap: number
-  paragraphGap: number
-  margin: number
-  headingSize: number
-  accentColor: string
-  textColor: string
-  paperColor: string
+  elementColors?: Partial<Record<ElementColor, string>>;
+  elementFonts?: Partial<Record<ElementFont, FontFamily>>;
+  fontFamily: FontFamily;
+  textAlign?: (typeof textAlignments)[number];
+  blockAlignments?: BlockAlignment[];
+  fontSize: number;
+  lineHeight: number;
+  sectionGap: number;
+  paragraphGap: number;
+  margin: number;
+  headingSize: number;
+  accentColor: string;
+  textColor: string;
+  paperColor: string;
 }
 export interface Resume {
-  id: string
-  name: string
-  markdown: string
-  layout: Layout
+  id: string;
+  name: string;
+  markdown: string;
+  layout: Layout;
 }
 export const defaultLayout: Layout = {
   fontFamily: 'Arial',
@@ -186,7 +186,7 @@ export const defaultLayout: Layout = {
   accentColor: '#1d1d1f',
   textColor: '#333336',
   paperColor: '#ffffff',
-}
+};
 export const layoutRanges = {
   fontSize: [8, 14, 0.5],
   lineHeight: [1.1, 2, 0.05],
@@ -194,10 +194,10 @@ export const layoutRanges = {
   paragraphGap: [2, 16, 1],
   margin: [8, 28, 1],
   headingSize: [18, 36, 1],
-} as const
+} as const;
 export function validLayout(value: unknown): value is Layout {
-  if (!value || typeof value !== 'object') return false
-  const l = value as Record<string, unknown>
+  if (!value || typeof value !== 'object') return false;
+  const l = value as Record<string, unknown>;
   return (
     (l.elementColors === undefined ||
       (l.elementColors !== null &&
@@ -214,13 +214,10 @@ export function validLayout(value: unknown): value is Layout {
         typeof l.elementFonts === 'object' &&
         !Array.isArray(l.elementFonts) &&
         Object.entries(l.elementFonts).every(
-          ([key, value]) =>
-            elementFonts.some((element) => element.key === key) &&
-            fonts.includes(value as FontFamily),
+          ([key, value]) => elementFonts.some((element) => element.key === key) && fonts.includes(value as FontFamily),
         ))) &&
     fonts.includes(l.fontFamily as Layout['fontFamily']) &&
-    (l.textAlign === undefined ||
-      textAlignments.includes(l.textAlign as (typeof textAlignments)[number])) &&
+    (l.textAlign === undefined || textAlignments.includes(l.textAlign as (typeof textAlignments)[number])) &&
     (l.blockAlignments === undefined ||
       (Array.isArray(l.blockAlignments) &&
         l.blockAlignments.length <= 5000 &&
@@ -233,25 +230,21 @@ export function validLayout(value: unknown): value is Layout {
             block.end > block.start &&
             block.end <= 250000 &&
             (block.source === undefined ||
-              (typeof block.source === 'string' &&
-                block.source.length === block.end - block.start)) &&
+              (typeof block.source === 'string' && block.source.length === block.end - block.start)) &&
             textAlignments.includes(block.align),
         ))) &&
     Object.entries(layoutRanges).every(
       ([key, [min, max]]) =>
-        typeof l[key] === 'number' &&
-        Number.isFinite(l[key]) &&
-        (l[key] as number) >= min &&
-        (l[key] as number) <= max,
+        typeof l[key] === 'number' && Number.isFinite(l[key]) && (l[key] as number) >= min && (l[key] as number) <= max,
     ) &&
     ['accentColor', 'textColor', 'paperColor'].every(
       (key) => typeof l[key] === 'string' && /^#[a-f\d]{6}$/i.test(l[key] as string),
     )
-  )
+  );
 }
 export function validResume(value: unknown): value is Resume {
-  if (!value || typeof value !== 'object') return false
-  const r = value as Record<string, unknown>
+  if (!value || typeof value !== 'object') return false;
+  const r = value as Record<string, unknown>;
   return (
     typeof r.id === 'string' &&
     /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(r.id) &&
@@ -262,29 +255,23 @@ export function validResume(value: unknown): value is Resume {
     typeof r.markdown === 'string' &&
     r.markdown.length <= 250000 &&
     validLayout(r.layout)
-  )
+  );
 }
 
-export function remapBlockAlignments(
-  blocks: BlockAlignment[],
-  before: string,
-  after: string,
-): BlockAlignment[] {
-  let start = 0
-  while (start < before.length && start < after.length && before[start] === after[start]) start++
-  let oldEnd = before.length
-  let newEnd = after.length
+export function remapBlockAlignments(blocks: BlockAlignment[], before: string, after: string): BlockAlignment[] {
+  let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) start++;
+  let oldEnd = before.length;
+  let newEnd = after.length;
   while (oldEnd > start && newEnd > start && before[oldEnd - 1] === after[newEnd - 1]) {
-    oldEnd--
-    newEnd--
+    oldEnd--;
+    newEnd--;
   }
-  const delta = after.length - before.length
+  const delta = after.length - before.length;
   return blocks.flatMap((block) => {
-    if (block.source !== undefined && before.slice(block.start, block.end) !== block.source)
-      return []
-    if (block.end <= start) return [block]
-    if (block.start >= oldEnd)
-      return [{ ...block, start: block.start + delta, end: block.end + delta }]
+    if (block.source !== undefined && before.slice(block.start, block.end) !== block.source) return [];
+    if (block.end <= start) return [block];
+    if (block.start >= oldEnd) return [{ ...block, start: block.start + delta, end: block.end + delta }];
     // A change contained in one paragraph preserves its alignment. Removed or
     // replaced blocks lose the override rather than applying it to other text.
     if (start >= block.start && oldEnd <= block.end && newEnd > block.start)
@@ -292,13 +279,11 @@ export function remapBlockAlignments(
         {
           ...block,
           end: block.end + delta,
-          ...(block.source !== undefined
-            ? { source: after.slice(block.start, block.end + delta) }
-            : {}),
+          ...(block.source !== undefined ? { source: after.slice(block.start, block.end + delta) } : {}),
         },
-      ]
-    return []
-  })
+      ];
+    return [];
+  });
 }
 export function slugify(name: string) {
   return name
@@ -307,20 +292,20 @@ export function slugify(name: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .slice(0, 60)
-    .replace(/^-|-$/g, '')
+    .replace(/^-|-$/g, '');
 }
 export function layoutCss(layout: Layout) {
   return {
     ...Object.fromEntries(
       elementColors.flatMap(({ key }) => {
-        const color = layout.elementColors?.[key]
-        return color ? [[`--cv-${key}`, color]] : []
+        const color = layout.elementColors?.[key];
+        return color ? [[`--cv-${key}`, color]] : [];
       }),
     ),
     ...Object.fromEntries(
       elementFonts.flatMap(({ key }) => {
-        const font = layout.elementFonts?.[key]
-        return font ? [[`--cv-${key}-font`, fontFamilyCss(font)]] : []
+        const font = layout.elementFonts?.[key];
+        return font ? [[`--cv-${key}-font`, fontFamilyCss(font)]] : [];
       }),
     ),
     '--cv-font-family': fontFamilyCss(layout.fontFamily),
@@ -334,7 +319,7 @@ export function layoutCss(layout: Layout) {
     '--cv-accent': layout.accentColor,
     '--cv-text': layout.textColor,
     '--cv-paper': layout.paperColor,
-  }
+  };
 }
 export function findBlockAlignment(
   layout: Layout,
@@ -347,30 +332,23 @@ export function findBlockAlignment(
       block.start === start &&
       block.end === end &&
       (block.source === undefined || block.source === markdown.slice(block.start, block.end)),
-  )
+  );
 }
-export function alignBlocks(
-  layout: Layout,
-  markdown: string,
-  blocks: BlockRange[],
-  align: TextAlignment,
-): Layout {
+export function alignBlocks(layout: Layout, markdown: string, blocks: BlockRange[], align: TextAlignment): Layout {
   return {
     ...layout,
     blockAlignments: [
-      ...(layout.blockAlignments ?? []).filter(
-        (block) => !blocks.some((selected) => selected.start === block.start),
-      ),
+      ...(layout.blockAlignments ?? []).filter((block) => !blocks.some((selected) => selected.start === block.start)),
       ...blocks.map((block) => ({
         ...block,
         align,
         source: markdown.slice(block.start, block.end),
       })),
     ].sort((a, b) => a.start - b.start),
-  }
+  };
 }
 export function layoutCssDeclarations(layout: Layout, indent = '') {
   return Object.entries(layoutCss(layout))
     .map(([key, value]) => `${indent}${key}: ${value};`)
-    .join('\n')
+    .join('\n');
 }

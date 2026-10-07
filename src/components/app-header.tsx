@@ -1,5 +1,5 @@
-import { FileText } from 'lucide-react'
-import type { ReactNode, Ref } from 'react'
+import { FileText } from 'lucide-react';
+import type { ReactNode, Ref } from 'react';
 
 export function AppHeader({ ref, children }: { ref?: Ref<HTMLElement>; children: ReactNode }) {
   return (
@@ -17,5 +17,5 @@ export function AppHeader({ ref, children }: { ref?: Ref<HTMLElement>; children:
       </div>
       {children}
     </header>
-  )
+  );
 }

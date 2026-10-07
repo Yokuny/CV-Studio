@@ -1,7 +1,7 @@
-import { NumberField } from '@/components/number-field'
-import { type Layout, layoutRanges } from '@/lib/model'
+import { NumberField } from '@/components/number-field';
+import { type Layout, layoutRanges } from '@/lib/model';
 
-export type LayoutToken = keyof typeof layoutRanges
+export type LayoutToken = keyof typeof layoutRanges;
 
 export function TokenControl({
   name,
@@ -10,13 +10,13 @@ export function TokenControl({
   layout,
   onChange,
 }: {
-  name: string
-  token: LayoutToken
-  unit: string
-  layout: Layout
-  onChange: (token: LayoutToken, value: number) => void
+  name: string;
+  token: LayoutToken;
+  unit: string;
+  layout: Layout;
+  onChange: (token: LayoutToken, value: number) => void;
 }) {
-  const [min, max, step] = layoutRanges[token]
+  const [min, max, step] = layoutRanges[token];
   return (
     <NumberField
       id={`token-${token}`}
@@ -28,5 +28,5 @@ export function TokenControl({
       unit={unit}
       onChange={(value) => onChange(token, value)}
     />
-  )
+  );
 }

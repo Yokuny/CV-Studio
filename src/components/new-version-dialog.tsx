@@ -1,6 +1,6 @@
-import { Plus } from 'lucide-react'
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -8,19 +8,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { slugify } from '@/lib/model'
-import { selectCurrent, selectHasVersion, useResumes } from '@/store/resumes'
-import { useUi } from '@/store/ui'
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { slugify } from '@/lib/model';
+import { selectCurrent, selectHasVersion, useResumes } from '@/store/resumes';
+import { useUi } from '@/store/ui';
 
 export function NewVersionDialog() {
-  const open = useUi((s) => s.newVersionOpen)
-  const onOpenChange = useUi((s) => s.setNewVersionOpen)
-  const sourceName = useResumes((s) => (selectHasVersion(s) ? selectCurrent(s).name : undefined))
-  const onCreate = useResumes((s) => s.create)
-  const [name, setName] = useState('')
+  const open = useUi((s) => s.newVersionOpen);
+  const onOpenChange = useUi((s) => s.setNewVersionOpen);
+  const sourceName = useResumes((s) => (selectHasVersion(s) ? selectCurrent(s).name : undefined));
+  const onCreate = useResumes((s) => s.create);
+  const [name, setName] = useState('');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -34,10 +34,10 @@ export function NewVersionDialog() {
         </DialogHeader>
         <form
           onSubmit={(e) => {
-            e.preventDefault()
-            if (!onCreate(name)) return
-            onOpenChange(false)
-            setName('')
+            e.preventDefault();
+            if (!onCreate(name)) return;
+            onOpenChange(false);
+            setName('');
           }}
         >
           <Label htmlFor="version-name">Nome da versão</Label>
@@ -50,9 +50,7 @@ export function NewVersionDialog() {
             maxLength={120}
             onChange={(e) => setName(e.target.value)}
           />
-          <p className="small-note mt-3">
-            Arquivo: content/cv/{slugify(name) || 'nome-da-vaga'}.md
-          </p>
+          <p className="small-note mt-3">Arquivo: content/cv/{slugify(name) || 'nome-da-vaga'}.md</p>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
@@ -64,5 +62,5 @@ export function NewVersionDialog() {
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -891,8 +891,7 @@ body.is-scrubbing * {
   text-transform: uppercase;
   letter-spacing: 1px;
   padding-bottom: 5px;
-  border-bottom: 1px solid
-    var(--cv-heading-border, color-mix(in srgb, var(--cv-accent), transparent 70%));
+  border-bottom: 1px solid var(--cv-heading-border, color-mix(in srgb, var(--cv-accent), transparent 70%));
   margin: var(--cv-section-gap) 0 9px;
 }
 :is(.resume, .markdown-rendered) h3 {
@@ -948,16 +947,12 @@ body.is-scrubbing * {
   text-align: left;
   font-weight: 700;
   color: var(--cv-table-header-text, var(--cv-table-text, inherit));
-  background: var(
-    --cv-table-header-background,
-    color-mix(in srgb, var(--cv-accent), transparent 94%)
-  );
+  background: var(--cv-table-header-background, color-mix(in srgb, var(--cv-accent), transparent 94%));
 }
 :is(.resume, .markdown-rendered) td,
 :is(.resume, .markdown-rendered) th {
   padding: 4px 8px;
-  border-bottom: 1px solid
-    var(--cv-table-border, color-mix(in srgb, var(--cv-text), transparent 91%));
+  border-bottom: 1px solid var(--cv-table-border, color-mix(in srgb, var(--cv-text), transparent 91%));
   vertical-align: top;
 }
 :is(.resume, .markdown-rendered) td:first-child {

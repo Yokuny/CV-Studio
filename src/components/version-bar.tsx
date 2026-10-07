@@ -1,24 +1,22 @@
-import { PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react'
-import { type Ref, useEffect } from 'react'
-import { IconButton } from '@/components/icon-button'
-import { Button } from '@/components/ui/button'
-import { VersionTab, versionTabId } from '@/components/version-tab'
-import { selectCurrent, selectDeleting, useResumes } from '@/store/resumes'
-import { useUi } from '@/store/ui'
+import { PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
+import { type Ref, useEffect } from 'react';
+import { IconButton } from '@/components/icon-button';
+import { Button } from '@/components/ui/button';
+import { VersionTab, versionTabId } from '@/components/version-tab';
+import { selectCurrent, selectDeleting, useResumes } from '@/store/resumes';
+import { useUi } from '@/store/ui';
 
 export function VersionBar({ ref }: { ref?: Ref<HTMLDivElement> }) {
-  const versions = useResumes((s) => s.versions)
-  const activeId = useResumes((s) => selectCurrent(s).id)
-  const newDisabled = useResumes((s) => !s.ready || selectDeleting(s))
-  const sidebarOpen = useUi((s) => s.sidebarOpen)
-  const toggleSidebar = useUi((s) => s.toggleSidebar)
-  const setNewVersionOpen = useUi((s) => s.setNewVersionOpen)
+  const versions = useResumes((s) => s.versions);
+  const activeId = useResumes((s) => selectCurrent(s).id);
+  const newDisabled = useResumes((s) => !s.ready || selectDeleting(s));
+  const sidebarOpen = useUi((s) => s.sidebarOpen);
+  const toggleSidebar = useUi((s) => s.toggleSidebar);
+  const setNewVersionOpen = useUi((s) => s.setNewVersionOpen);
 
   useEffect(() => {
-    document
-      .getElementById(versionTabId(activeId))
-      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-  }, [activeId])
+    document.getElementById(versionTabId(activeId))?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeId]);
 
   return (
     <div ref={ref} className="version-bar no-print">
@@ -46,5 +44,5 @@ export function VersionBar({ ref }: { ref?: Ref<HTMLDivElement> }) {
         </Button>
       </div>
     </div>
-  )
+  );
 }

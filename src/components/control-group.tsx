@@ -1,14 +1,6 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from 'react';
 
-export function ControlGroup({
-  icon,
-  title,
-  children,
-}: {
-  icon: ReactNode
-  title: string
-  children: ReactNode
-}) {
+export function ControlGroup({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
     <fieldset className="control-group">
       <legend>
@@ -16,5 +8,5 @@ export function ControlGroup({
       </legend>
       {children}
     </fieldset>
-  )
+  );
 }

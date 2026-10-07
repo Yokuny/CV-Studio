@@ -1,6 +1,6 @@
-import { LoaderCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { LoaderCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -8,35 +8,35 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { selectDeleting, useResumes } from '@/store/resumes'
+} from '@/components/ui/dialog';
+import { selectDeleting, useResumes } from '@/store/resumes';
 
 export function DeleteVersionDialog() {
-  const version = useResumes((s) => s.closing)
-  const writable = useResumes((s) => s.writable)
-  const deleting = useResumes(selectDeleting)
-  const onCancel = useResumes((s) => s.cancelClose)
-  const onConfirm = useResumes((s) => s.confirmClose)
-  const [error, setError] = useState('')
+  const version = useResumes((s) => s.closing);
+  const writable = useResumes((s) => s.writable);
+  const deleting = useResumes(selectDeleting);
+  const onCancel = useResumes((s) => s.cancelClose);
+  const onConfirm = useResumes((s) => s.confirmClose);
+  const [error, setError] = useState('');
   useEffect(() => {
-    if (version) setError('')
-  }, [version])
+    if (version) setError('');
+  }, [version]);
   async function confirm() {
-    setError('')
+    setError('');
     try {
-      await onConfirm()
+      await onConfirm();
     } catch (failure) {
-      setError((failure as Error).message)
+      setError((failure as Error).message);
     }
   }
   const blockWhileDeleting = (event: Event) => {
-    if (deleting) event.preventDefault()
-  }
+    if (deleting) event.preventDefault();
+  };
   return (
     <Dialog
       open={version !== null}
       onOpenChange={(open) => {
-        if (!open && !deleting) onCancel()
+        if (!open && !deleting) onCancel();
       }}
     >
       <DialogContent onEscapeKeyDown={blockWhileDeleting} onPointerDownOutside={blockWhileDeleting}>
@@ -64,5 +64,5 @@ export function DeleteVersionDialog() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -1,42 +1,42 @@
-import { type CSSProperties, useEffect, useRef } from 'react'
-import { AppHeader } from '@/components/app-header'
-import { DeleteVersionDialog } from '@/components/delete-version-dialog'
-import { DesignPanel } from '@/components/design-panel'
-import { NewVersionDialog } from '@/components/new-version-dialog'
-import { ResumeActions } from '@/components/resume-actions'
-import { Toast } from '@/components/toast'
-import { VersionBar } from '@/components/version-bar'
-import { ViewSwitch } from '@/components/view-switch'
-import { Workspace } from '@/components/workspace'
-import { useLayoutMetrics } from '@/hooks/use-layout-metrics'
-import { selectCurrent, selectHasDrafts, selectHasVersion, useResumes } from '@/store/resumes'
-import { useUi } from '@/store/ui'
+import { type CSSProperties, useEffect, useRef } from 'react';
+import { AppHeader } from '@/components/app-header';
+import { DeleteVersionDialog } from '@/components/delete-version-dialog';
+import { DesignPanel } from '@/components/design-panel';
+import { NewVersionDialog } from '@/components/new-version-dialog';
+import { ResumeActions } from '@/components/resume-actions';
+import { Toast } from '@/components/toast';
+import { VersionBar } from '@/components/version-bar';
+import { ViewSwitch } from '@/components/view-switch';
+import { Workspace } from '@/components/workspace';
+import { useLayoutMetrics } from '@/hooks/use-layout-metrics';
+import { selectCurrent, selectHasDrafts, selectHasVersion, useResumes } from '@/store/resumes';
+import { useUi } from '@/store/ui';
 
 export default function App() {
-  const { name, layout } = useResumes(selectCurrent)
-  const hasVersion = useResumes(selectHasVersion)
-  const sidebarOpen = useUi((s) => s.sidebarOpen)
-  const headerHeight = useUi((s) => s.metrics.headerHeight)
-  const actionHeight = useUi((s) => s.metrics.actionHeight)
-  const headerRef = useRef<HTMLElement>(null)
-  const tabsRef = useRef<HTMLDivElement>(null)
-  const workspaceRef = useRef<HTMLElement>(null)
-  const paperRef = useRef<HTMLElement>(null)
-  useLayoutMetrics({ header: headerRef, tabs: tabsRef, workspace: workspaceRef, paper: paperRef })
+  const { name, layout } = useResumes(selectCurrent);
+  const hasVersion = useResumes(selectHasVersion);
+  const sidebarOpen = useUi((s) => s.sidebarOpen);
+  const headerHeight = useUi((s) => s.metrics.headerHeight);
+  const actionHeight = useUi((s) => s.metrics.actionHeight);
+  const headerRef = useRef<HTMLElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const paperRef = useRef<HTMLElement>(null);
+  useLayoutMetrics({ header: headerRef, tabs: tabsRef, workspace: workspaceRef, paper: paperRef });
 
   useEffect(() => {
-    void useResumes.getState().load()
+    void useResumes.getState().load();
     const warnAboutDrafts = (event: BeforeUnloadEvent) => {
-      if (!selectHasDrafts(useResumes.getState())) return
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warnAboutDrafts)
-    return () => window.removeEventListener('beforeunload', warnAboutDrafts)
-  }, [])
+      if (!selectHasDrafts(useResumes.getState())) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnAboutDrafts);
+    return () => window.removeEventListener('beforeunload', warnAboutDrafts);
+  }, []);
   useEffect(() => {
-    document.title = `${name} — CV Studio`
-  }, [name])
+    document.title = `${name} — CV Studio`;
+  }, [name]);
 
   return (
     <div
@@ -69,5 +69,5 @@ export default function App() {
       <DeleteVersionDialog />
       <NewVersionDialog />
     </div>
-  )
+  );
 }

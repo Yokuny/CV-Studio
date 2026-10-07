@@ -1,21 +1,21 @@
-import { TableKit } from '@tiptap/extension-table'
-import { Markdown } from '@tiptap/markdown'
-import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import { Bold, Heading1, Heading2, Italic, List, ListOrdered, Redo2, Undo2 } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-import { Button } from '@/components/ui/button'
+import { TableKit } from '@tiptap/extension-table';
+import { Markdown } from '@tiptap/markdown';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Bold, Heading1, Heading2, Italic, List, ListOrdered, Redo2, Undo2 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
 
 export default function MarkdownEditor({
   value,
   onChange,
   scale,
 }: {
-  value: string
-  onChange: (markdown: string) => void
-  scale: number
+  value: string;
+  onChange: (markdown: string) => void;
+  scale: number;
 }) {
-  const latest = useRef(value)
+  const latest = useRef(value);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ underline: false, link: { openOnClick: false } }),
@@ -33,11 +33,11 @@ export default function MarkdownEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      const markdown = editor.getMarkdown()
-      latest.current = markdown
-      onChange(markdown)
+      const markdown = editor.getMarkdown();
+      latest.current = markdown;
+      onChange(markdown);
     },
-  })
+  });
   const state = useEditorState({
     editor,
     selector: ({ editor }) => ({
@@ -50,14 +50,14 @@ export default function MarkdownEditor({
       undo: editor?.can().undo(),
       redo: editor?.can().redo(),
     }),
-  })
+  });
   useEffect(() => {
-    if (!editor || value === latest.current) return
-    editor.commands.setContent(value, { contentType: 'markdown', emitUpdate: false })
-    latest.current = value
-  }, [editor, value])
+    if (!editor || value === latest.current) return;
+    editor.commands.setContent(value, { contentType: 'markdown', emitUpdate: false });
+    latest.current = value;
+  }, [editor, value]);
 
-  if (!editor) return null
+  if (!editor) return null;
   const controls = [
     {
       label: 'Negrito',
@@ -95,7 +95,7 @@ export default function MarkdownEditor({
       active: state?.ordered,
       action: () => editor.chain().focus().toggleOrderedList().run(),
     },
-  ]
+  ];
   return (
     <div className="visual-editor">
       <div className="markdown-formatting" role="toolbar" aria-label="Formatação do Markdown">
@@ -141,5 +141,5 @@ export default function MarkdownEditor({
         <EditorContent editor={editor} />
       </div>
     </div>
-  )
+  );
 }

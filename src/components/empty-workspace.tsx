@@ -1,9 +1,9 @@
-import { FileText, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useUi } from '@/store/ui'
+import { FileText, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useUi } from '@/store/ui';
 
 export function EmptyWorkspace() {
-  const setNewVersionOpen = useUi((s) => s.setNewVersionOpen)
+  const setNewVersionOpen = useUi((s) => s.setNewVersionOpen);
   return (
     <div className="empty-workspace">
       <FileText size={32} />
@@ -13,5 +13,5 @@ export function EmptyWorkspace() {
         <Plus /> Nova Versão
       </Button>
     </div>
-  )
+  );
 }

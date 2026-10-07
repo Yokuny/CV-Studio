@@ -1,30 +1,30 @@
-import { create } from 'zustand'
-import { fitScale } from '@/lib/page'
+import { create } from 'zustand';
+import { fitScale } from '@/lib/page';
 
-export type PreviewMode = 'pdf' | 'markdown' | 'text'
-export const defaultZoom = 0.85
-export const minZoom = 0.35
-export const maxZoom = 1.5
+export type PreviewMode = 'pdf' | 'markdown' | 'text';
+export const defaultZoom = 0.85;
+export const minZoom = 0.35;
+export const maxZoom = 1.5;
 
 export interface LayoutMetrics {
-  paperHeight: number
-  availableWidth: number
-  headerHeight: number
-  actionHeight: number
+  paperHeight: number;
+  availableWidth: number;
+  headerHeight: number;
+  actionHeight: number;
 }
 
 interface UiState {
-  preview: PreviewMode
-  zoom: number
-  sidebarOpen: boolean
-  newVersionOpen: boolean
-  metrics: LayoutMetrics
-  setPreview: (preview: PreviewMode) => void
-  zoomBy: (delta: number) => void
-  resetZoom: () => void
-  toggleSidebar: () => void
-  setNewVersionOpen: (open: boolean) => void
-  setMetrics: (metrics: Partial<LayoutMetrics>) => void
+  preview: PreviewMode;
+  zoom: number;
+  sidebarOpen: boolean;
+  newVersionOpen: boolean;
+  metrics: LayoutMetrics;
+  setPreview: (preview: PreviewMode) => void;
+  zoomBy: (delta: number) => void;
+  resetZoom: () => void;
+  toggleSidebar: () => void;
+  setNewVersionOpen: (open: boolean) => void;
+  setMetrics: (metrics: Partial<LayoutMetrics>) => void;
 }
 
 export const useUi = create<UiState>()((set) => ({
@@ -44,6 +44,6 @@ export const useUi = create<UiState>()((set) => ({
         ? s
         : { metrics: { ...s.metrics, ...metrics } },
     ),
-}))
+}));
 
-export const selectScale = (s: UiState) => fitScale(s.zoom, s.metrics.availableWidth)
+export const selectScale = (s: UiState) => fitScale(s.zoom, s.metrics.availableWidth);

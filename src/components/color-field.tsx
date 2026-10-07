@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { Label } from '@/components/ui/label'
+import type { ReactNode } from 'react';
+import { Label } from '@/components/ui/label';
 
 /** Labelled color input; `adornment` renders before the swatch (hex value, reset button…). */
 export function ColorField({
@@ -10,12 +10,12 @@ export function ColorField({
   adornment,
   title,
 }: {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-  adornment?: ReactNode
-  title?: string
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  adornment?: ReactNode;
+  title?: string;
 }) {
   return (
     <div className="color-control">
@@ -32,5 +32,5 @@ export function ColorField({
         />
       </div>
     </div>
-  )
+  );
 }

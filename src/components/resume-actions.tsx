@@ -1,21 +1,17 @@
-import { ArrowDownToLine, ArrowUpFromLine, LoaderCircle, Save } from 'lucide-react'
-import { type ComponentProps, type ReactNode, useRef } from 'react'
-import { useShallow } from 'zustand/react/shallow'
-import { Button } from '@/components/ui/button'
-import { ButtonGroup } from '@/components/ui/button-group'
-import { selectDeleting, selectDirty, selectHasVersion, useResumes } from '@/store/resumes'
+import { ArrowDownToLine, ArrowUpFromLine, LoaderCircle, Save } from 'lucide-react';
+import { type ComponentProps, type ReactNode, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
+import { selectDeleting, selectDirty, selectHasVersion, useResumes } from '@/store/resumes';
 
-function ActionButton({
-  label,
-  icon,
-  ...props
-}: ComponentProps<typeof Button> & { label: string; icon: ReactNode }) {
+function ActionButton({ label, icon, ...props }: ComponentProps<typeof Button> & { label: string; icon: ReactNode }) {
   return (
     <Button variant="ghost" size="sm" aria-label={label} {...props}>
       {icon}
       <span className="button-label">{label}</span>
     </Button>
-  )
+  );
 }
 
 export function ResumeActions() {
@@ -26,11 +22,11 @@ export function ResumeActions() {
       exportSources,
       save,
     })),
-  )
-  const disabled = useResumes((s) => !s.ready || !selectHasVersion(s))
-  const deleting = useResumes(selectDeleting)
-  const canSave = useResumes((s) => s.writable && selectDirty(s))
-  const importRef = useRef<HTMLInputElement>(null)
+  );
+  const disabled = useResumes((s) => !s.ready || !selectHasVersion(s));
+  const deleting = useResumes(selectDeleting);
+  const canSave = useResumes((s) => s.writable && selectDirty(s));
+  const importRef = useRef<HTMLInputElement>(null);
   return (
     <div className="header-actions">
       <ButtonGroup className="action-group" aria-label="Resume actions">
@@ -51,11 +47,7 @@ export function ResumeActions() {
         <ActionButton
           label="Save"
           title="Save version"
-          icon={
-            <span className="inline-flex">
-              {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
-            </span>
-          }
+          icon={<span className="inline-flex">{saving ? <LoaderCircle className="animate-spin" /> : <Save />}</span>}
           onClick={save}
           disabled={disabled || !canSave || saving || deleting}
         />
@@ -76,10 +68,10 @@ export function ResumeActions() {
         className="hidden"
         aria-label="Importar arquivo Markdown"
         onChange={(e) => {
-          void importMarkdown(e.target.files?.[0])
-          e.target.value = ''
+          void importMarkdown(e.target.files?.[0]);
+          e.target.value = '';
         }}
       />
     </div>
-  )
+  );
 }

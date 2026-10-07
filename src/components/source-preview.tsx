@@ -1,19 +1,19 @@
-import { type CSSProperties, lazy, Suspense } from 'react'
-import { Textarea } from '@/components/ui/textarea'
-import { layoutCss } from '@/lib/model'
-import { pageWidth } from '@/lib/page'
-import { selectCurrent, useResumes } from '@/store/resumes'
-import { selectScale, useUi } from '@/store/ui'
+import { type CSSProperties, lazy, Suspense } from 'react';
+import { Textarea } from '@/components/ui/textarea';
+import { layoutCss } from '@/lib/model';
+import { pageWidth } from '@/lib/page';
+import { selectCurrent, useResumes } from '@/store/resumes';
+import { selectScale, useUi } from '@/store/ui';
 
-const MarkdownEditor = lazy(() => import('@/components/markdown-editor'))
+const MarkdownEditor = lazy(() => import('@/components/markdown-editor'));
 
 /** Editable views of the Markdown source: the visual editor or the raw text. */
 export function SourcePreview({ mode }: { mode: 'markdown' | 'text' }) {
-  const { id, name, markdown, layout } = useResumes(selectCurrent)
-  const update = useResumes((s) => s.update)
-  const scale = useUi(selectScale)
-  const onChange = (markdown: string) => update({ markdown })
-  const rendered = mode === 'markdown'
+  const { id, name, markdown, layout } = useResumes(selectCurrent);
+  const update = useResumes((s) => s.update);
+  const scale = useUi(selectScale);
+  const onChange = (markdown: string) => update({ markdown });
+  const rendered = mode === 'markdown';
   return (
     <section
       className={`markdown-preview ${rendered ? 'rendered-preview ' : ''}no-print`}
@@ -35,5 +35,5 @@ export function SourcePreview({ mode }: { mode: 'markdown' | 'text' }) {
         />
       )}
     </section>
-  )
+  );
 }

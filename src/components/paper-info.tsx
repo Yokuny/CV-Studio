@@ -1,19 +1,19 @@
-import { FileText } from 'lucide-react'
-import { estimatePages, pageWidth } from '@/lib/page'
-import { selectCurrent, useResumes } from '@/store/resumes'
-import { type PreviewMode, selectScale, useUi } from '@/store/ui'
+import { FileText } from 'lucide-react';
+import { estimatePages, pageWidth } from '@/lib/page';
+import { selectCurrent, useResumes } from '@/store/resumes';
+import { type PreviewMode, selectScale, useUi } from '@/store/ui';
 
 const modeLabels: Record<PreviewMode, string> = {
   pdf: 'Prévia final · PDF',
   markdown: 'Markdown',
   text: 'Edição',
-}
+};
 
 export function PaperInfo() {
-  const { name, layout } = useResumes(selectCurrent)
-  const preview = useUi((s) => s.preview)
-  const scale = useUi(selectScale)
-  const pages = useUi((s) => estimatePages(s.metrics.paperHeight, layout.margin))
+  const { name, layout } = useResumes(selectCurrent);
+  const preview = useUi((s) => s.preview);
+  const scale = useUi(selectScale);
+  const pages = useUi((s) => estimatePages(s.metrics.paperHeight, layout.margin));
   return (
     <div className="paper-info no-print" style={{ width: pageWidth * scale }}>
       <div className="paper-document">
@@ -33,5 +33,5 @@ export function PaperInfo() {
         </span>
       </div>
     </div>
-  )
+  );
 }
