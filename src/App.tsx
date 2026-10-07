@@ -95,6 +95,8 @@ export default function App() {
   const [availableWidth, setAvailableWidth] = useState(900)
   const [help, setHelp] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [headerHeight, setHeaderHeight] = useState(68)
+  const headerRef = useRef<HTMLElement>(null)
   const paperRef = useRef<HTMLElement>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const importRef = useRef<HTMLInputElement>(null)
@@ -149,14 +151,17 @@ export default function App() {
   }, [versions, saved])
   useEffect(() => {
     const paper = paperRef.current,
-      workspace = workspaceRef.current
-    if (!paper || !workspace) return
+      workspace = workspaceRef.current,
+      header = headerRef.current
+    if (!paper || !workspace || !header) return
     const observer = new ResizeObserver(() => {
       setPaperHeight(paper.offsetHeight)
       setAvailableWidth(workspace.clientWidth)
+      setHeaderHeight(header.offsetHeight)
     })
     observer.observe(paper)
     observer.observe(workspace)
+    observer.observe(header)
     return () => observer.disconnect()
   }, [])
   useEffect(() => {
@@ -269,42 +274,69 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      style={{ '--app-header-height': `${headerHeight}px` } as CSSProperties}
+    >
       <style>{`@page { size: A4; margin: ${current.layout.margin}mm; }`}</style>
-      <header className="app-header no-print">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="sidebar-toggle"
-          aria-label={sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
-          title={sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
-          aria-expanded={sidebarOpen}
-          aria-controls="editor-sidebar"
-          onClick={() => setSidebarOpen((open) => !open)}
-        >
-          {sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
-        </Button>
-        <a href="/" className="brand" aria-label="CV Studio início">
-          <span className="brand-icon">
-            <FileText size={21} />
-          </span>
-          <span>
-            cv<span className="font-normal">studio</span>
-            <span className="brand-dot">.</span>
-          </span>
-        </a>
-        <div className="header-location">
-          <span>Meu espaço</span>
-          <span className="opacity-40">/</span>
-          <strong>Currículos</strong>
+      <header ref={headerRef} className="app-header no-print">
+        <div className="header-identity">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="sidebar-toggle"
+            aria-label={sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
+            title={sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
+            aria-expanded={sidebarOpen}
+            aria-controls="editor-sidebar"
+            onClick={() => setSidebarOpen((open) => !open)}
+          >
+            {sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
+          </Button>
+          <a href="/" className="brand" aria-label="CV Studio início">
+            <span className="brand-icon">
+              <FileText size={21} />
+            </span>
+            <span>
+              cv<span className="font-normal">studio</span>
+              <span className="brand-dot">.</span>
+            </span>
+          </a>
+        </div>
+        <div className="preview-toolbar">
+          <div>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Diminuir zoom"
+              onClick={() => setZoom((z) => Math.max(0.35, z - 0.1))}
+            >
+              <Minus />
+            </Button>
+            <span className="zoom-value">{Math.round(scale * 100)}%</span>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Aumentar zoom"
+              onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))}
+            >
+              <Plus />
+            </Button>
+            <span className="toolbar-divider" />
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Ajustar prévia à tela"
+              onClick={() => setZoom(0.85)}
+            >
+              <ZoomIn />
+            </Button>
+          </div>
         </div>
         <div className="header-actions">
-          <span className="save-status">
-            <span className={dirty ? 'status-dot pending' : 'status-dot'} />
-            {!ready ? 'Carregando' : dirty ? 'Rascunho local' : 'Salvo no projeto'}
-          </span>
           <Button
             variant="outline"
+            aria-label="Salvar versão"
             onClick={save}
             disabled={!ready || !writable || saving || !dirty}
           >
@@ -597,52 +629,24 @@ export default function App() {
         </aside>
 
         <main className="workspace" ref={workspaceRef}>
-          <div className="workspace-header no-print">
-            <h1>{current.name}</h1>
-            <span className="preview-badge">
-              <span className="status-dot" /> Prévia ao vivo
-            </span>
-          </div>
-          <div className="preview-toolbar no-print">
-            <div>
-              <FileText size={14} />
-              <strong>A4</strong>
-              <span className="toolbar-divider" />
-              <span>210 × 297 mm</span>
-              <span className="page-estimate">
-                · ~{pages} {pages === 1 ? 'página' : 'páginas'}
-              </span>
-            </div>
-            <div>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Diminuir zoom"
-                onClick={() => setZoom((z) => Math.max(0.35, z - 0.1))}
-              >
-                <Minus />
-              </Button>
-              <span className="zoom-value">{Math.round(scale * 100)}%</span>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Aumentar zoom"
-                onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))}
-              >
-                <Plus />
-              </Button>
-              <span className="toolbar-divider" />
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Ajustar prévia à tela"
-                onClick={() => setZoom(0.85)}
-              >
-                <ZoomIn />
-              </Button>
-            </div>
-          </div>
           <div className="paper-stage">
+            <div className="paper-info no-print" style={{ width: 794 * scale }}>
+              <div className="paper-document">
+                <h1 title={current.name}>{current.name}</h1>
+                <span className="preview-badge">
+                  <span className="status-dot" /> Prévia ao vivo
+                </span>
+              </div>
+              <div className="paper-metadata">
+                <FileText size={14} />
+                <strong>A4</strong>
+                <span className="toolbar-divider" />
+                <span>210 × 297 mm</span>
+                <span className="page-estimate">
+                  · ~{pages} {pages === 1 ? 'página' : 'páginas'}
+                </span>
+              </div>
+            </div>
             <div
               className="paper-frame"
               style={{ width: 794 * scale, height: paperHeight * scale }}

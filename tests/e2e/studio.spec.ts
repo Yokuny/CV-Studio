@@ -18,7 +18,7 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
-  await expect(page.getByText('Salvo no projeto')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled()
   await expect(page.locator('.resume h1')).toHaveText('Felipe Rangel Ribeiro')
   await page.getByRole('button', { name: 'Nova versão para uma vaga' }).click()
   await page.getByLabel('Nome da versão').fill(id)
@@ -48,7 +48,7 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
   await expect(page.getByLabel('Família da fonte')).toHaveValue('Georgia')
   await expect(page.locator('.resume h2')).toHaveText('Backend')
   await page.getByRole('button', { name: 'Salvar versão' }).click()
-  await expect(page.getByText('Salvo no projeto')).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('salva em content/cv')
   expect(await fs.readFile(`content/cv/${id}.md`, 'utf8')).toContain('Node.js e AWS')
   expect(JSON.parse(await fs.readFile(`content/cv/${id}.layout.json`, 'utf8')).accentColor).toBe(
     '#334455',
@@ -78,14 +78,14 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
 
 test('restaura rascunho e aplica impressão A4 sem a interface', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('Salvo no projeto')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled()
   await page.getByRole('tab', { name: 'Conteúdo' }).click()
   await page
     .getByLabel('Conteúdo do currículo')
     .fill('# Rascunho persistente\n\nTexto para testar.\n\n[Link](https://github.com/Yokuny)')
   await page.reload()
   await expect(page.locator('.resume h1')).toHaveText('Rascunho persistente')
-  await expect(page.getByText('Rascunho local')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Salvar versão' })).toBeEnabled()
   await page.evaluate(() => {
     window.print = () => {
       document.documentElement.dataset.printRequested = 'true'

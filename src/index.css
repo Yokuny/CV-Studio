@@ -66,14 +66,33 @@ button:active:not(:disabled) {
   position: sticky;
   top: 0;
   z-index: 30;
-  height: 68px;
-  display: flex;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "identity preview actions";
   align-items: center;
-  gap: 16px;
-  padding: 0 24px;
+  gap: 20px;
+  padding: 12px 24px;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(20px) saturate(160%);
   box-shadow: 0 1px 0 #0000000a;
+}
+.header-identity {
+  grid-area: identity;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.paper-document {
+  min-width: 0;
+}
+.paper-document h1 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .sidebar-toggle {
   color: #6e6e73;
@@ -108,20 +127,8 @@ button:active:not(:disabled) {
 .brand-dot {
   color: #1d1d1f;
 }
-.header-location {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: 28px;
-  flex: 1;
-  font-size: 12px;
-  color: #86868b;
-}
-.header-location strong {
-  font-weight: 500;
-  color: #515154;
-}
 .header-actions {
+  grid-area: actions;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -132,14 +139,6 @@ button:active:not(:disabled) {
   font-size: 12px;
   border-radius: 9px;
 }
-.save-status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-right: 10px;
-  font-size: 11px;
-  color: #6e6e73;
-}
 .status-dot {
   width: 5px;
   height: 5px;
@@ -148,22 +147,19 @@ button:active:not(:disabled) {
   display: inline-block;
   flex-shrink: 0;
 }
-.status-dot.pending {
-  background: #bf7c12;
-}
 .studio-layout {
   display: grid;
   grid-template-columns: 304px minmax(0, 1fr);
-  min-height: calc(100dvh - 68px);
+  min-height: calc(100dvh - var(--app-header-height, 68px));
 }
 .studio-layout.sidebar-collapsed {
   grid-template-columns: minmax(0, 1fr);
 }
 .sidebar {
   position: sticky;
-  top: 68px;
+  top: var(--app-header-height, 68px);
   align-self: start;
-  height: calc(100dvh - 68px);
+  height: calc(100dvh - var(--app-header-height, 68px));
   overflow-y: auto;
   scrollbar-width: thin;
   display: flex;
@@ -488,47 +484,32 @@ body.is-scrubbing * {
   min-width: 0;
   background: #f5f5f7;
 }
-.workspace-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  max-width: 900px;
-  margin: 0 auto 24px;
-}
-.workspace-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.7px;
-  line-height: 1.25;
-}
 .preview-badge {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 9px;
+  padding: 0;
+  margin-top: 3px;
   color: #6e6e73;
   font-size: 10px;
   white-space: nowrap;
 }
 .preview-toolbar {
+  grid-area: preview;
   display: flex;
-  justify-content: space-between;
-  max-width: 794px;
-  margin: 0 auto;
-  border: 1px solid #e4e4e8;
-  border-radius: 11px;
-  padding: 8px 13px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
   color: #6e6e73;
   font-size: 11px;
-  background: #ffffffb3;
+  white-space: nowrap;
 }
 .preview-toolbar > div {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
 }
-.preview-toolbar strong {
+.paper-metadata strong {
   font-size: 11px;
   font-weight: 600;
   color: #1d1d1f;
@@ -549,8 +530,26 @@ body.is-scrubbing * {
 }
 .paper-stage {
   display: flex;
-  justify-content: center;
-  margin: 28px 0 24px;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 24px;
+}
+.paper-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 14px;
+  max-width: 100%;
+}
+.paper-metadata {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6e6e73;
+  font-size: 10px;
+  white-space: nowrap;
 }
 .paper-frame {
   position: relative;
@@ -670,27 +669,20 @@ body.is-scrubbing * {
 .toast > span {
   flex: 1;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1250px) {
+  .app-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "identity preview actions";
+    gap: 10px 20px;
+  }
   .workspace {
     padding: 28px 24px;
-  }
-  .header-location {
-    margin-left: 12px;
-  }
-  .save-status {
-    display: none;
-  }
-  .page-estimate {
-    display: none;
   }
 }
 @media (max-width: 800px) {
   .app-header {
-    padding: 0 16px;
-    gap: 10px;
-  }
-  .header-location {
-    display: none;
+    padding: 12px 16px;
+    gap: 10px 14px;
   }
   .brand {
     font-size: 20px;
@@ -704,26 +696,15 @@ body.is-scrubbing * {
   .workspace {
     padding: 24px 16px;
   }
-  .workspace-header h1 {
-    font-size: 21px;
-  }
-  .preview-badge {
-    display: none;
-  }
-  .preview-toolbar {
-    padding: 7px;
-  }
-  .preview-toolbar > div {
-    gap: 5px;
-  }
-  .preview-toolbar > div:first-child > span {
-    display: none;
-  }
 }
 @media (max-width: 600px) {
   .app-header {
-    height: 64px;
-    padding: 0 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "identity actions" "preview preview";
+    padding: 10px 12px;
+    gap: 10px 6px;
+  }
+  .header-identity {
     gap: 6px;
   }
   .brand {
@@ -732,12 +713,35 @@ body.is-scrubbing * {
   .brand-icon {
     display: none;
   }
+  .paper-document {
+    flex: 1;
+  }
+  .paper-document h1 {
+    min-width: 0;
+  }
+  .preview-badge {
+    margin-top: 0;
+    flex-shrink: 0;
+  }
   .header-actions {
     gap: 6px;
   }
   .header-actions button {
     font-size: 11px;
     padding-inline: 10px;
+  }
+  .preview-toolbar {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding-top: 6px;
+    border-top: 1px solid #e8e8ed;
+    font-size: 10px;
+  }
+  .preview-toolbar > div {
+    gap: 4px;
+  }
+  .preview-toolbar > div:last-child {
+    margin-left: auto;
   }
   .studio-layout,
   .studio-layout.sidebar-collapsed {
@@ -765,18 +769,6 @@ body.is-scrubbing * {
   }
   .workspace {
     padding: 24px 16px;
-  }
-  .workspace-header {
-    margin-bottom: 20px;
-  }
-  .preview-badge {
-    display: flex;
-  }
-  .preview-toolbar > div:first-child > span {
-    display: inline;
-  }
-  .preview-toolbar .page-estimate {
-    display: none;
   }
   .markdown-editor {
     height: 300px;
