@@ -20,7 +20,7 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled()
   await expect(page.locator('.resume h1')).toHaveText('Felipe Rangel Ribeiro')
-  await page.getByRole('button', { name: 'Nova versão para uma vaga' }).click()
+  await page.getByRole('button', { name: 'Nova Versão', exact: true }).click()
   await page.getByLabel('Nome da versão').fill(id)
   await page.getByRole('button', { name: 'Criar versão', exact: true }).click()
   await page.getByRole('tab', { name: 'Conteúdo' }).click()
@@ -64,6 +64,19 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
     data: { resume, expectedRevision: revision },
   })
   expect(staleSave.status()).toBe(409)
+  const staleDelete = await request.delete('/api/resumes', {
+    data: { id, expectedRevision: revision },
+  })
+  expect(staleDelete.status()).toBe(409)
+  const invalidDelete = await request.delete('/api/resumes', {
+    data: { id: '../../escape', expectedRevision: null },
+  })
+  expect(invalidDelete.status()).toBe(400)
+  const foreignDelete = await request.delete('/api/resumes', {
+    headers: { Origin: 'https://example.com' },
+    data: { id, expectedRevision: revision },
+  })
+  expect(foreignDelete.status()).toBe(403)
   const invalid = await request.post('/api/resumes', {
     data: { resume: { ...resume, id: '../../escape' }, expectedRevision: null },
   })
@@ -177,4 +190,73 @@ test('campos numéricos aceitam digitação, botões, arraste e limites', async 
   await text.fill('100')
   await text.press('Enter')
   await expect(text).toHaveValue('14')
+})
+
+test('abas confirmam exclusão, aceitam atalhos e removem arquivos e rascunhos', async ({
+  page,
+}) => {
+  const name = `${id}-tabs`
+  try {
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled()
+    await page.getByRole('button', { name: 'Nova Versão', exact: true }).click()
+    await page.getByLabel('Nome da versão').fill(name)
+    await page.getByRole('button', { name: 'Criar versão', exact: true }).click()
+    const versionTab = page.getByRole('tab', { name, exact: true })
+    await expect(versionTab).toHaveAttribute('aria-selected', 'true')
+    await page.getByRole('button', { name: 'Salvar versão' }).click()
+    await expect(page.getByRole('status')).toContainText('salva em content/cv')
+    await versionTab.click({ button: 'middle' })
+    await expect(page.getByRole('heading', { name: 'Fechar significa excluir' })).toBeVisible()
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+    await versionTab.click({ clickCount: 3 })
+    await expect(page.getByRole('heading', { name: 'Fechar significa excluir' })).toBeVisible()
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+    await page.getByRole('tab', { name: 'Conteúdo', exact: true }).click()
+    await page.getByLabel('Conteúdo do currículo').fill('# Rascunho a excluir')
+    await page.getByRole('button', { name: `Fechar e excluir ${name}`, exact: true }).click()
+    await page.getByRole('button', { name: 'Fechar e excluir', exact: true }).click()
+    await expect(versionTab).toHaveCount(0)
+    for (const ext of ['md', 'layout.json', 'meta.json']) {
+      await expect(fs.access(`content/cv/${name}.${ext}`)).rejects.toThrow()
+    }
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled()
+    await expect(versionTab).toHaveCount(0)
+    expect(await page.evaluate(() => localStorage.getItem('cv-studio:drafts:v1'))).not.toContain(
+      name,
+    )
+  } finally {
+    await Promise.all(
+      ['md', 'layout.json', 'meta.json'].map((ext) =>
+        fs.rm(`content/cv/${name}.${ext}`, { force: true }),
+      ),
+    )
+  }
+})
+
+test('fechar todas as abas em modo estático mostra estado vazio e permite recomeçar', async ({
+  page,
+}) => {
+  await page.goto('http://127.0.0.1:4173')
+  await expect(page.getByText('Modo de prévia:', { exact: false })).toBeVisible()
+  while (await page.locator('.version-tab').count()) {
+    await page.locator('.version-tab-close').first().click()
+    await expect(page.getByRole('dialog')).toContainText(
+      'Os arquivos do projeto não serão removidos',
+    )
+    await page.getByRole('button', { name: 'Fechar e excluir', exact: true }).click()
+  }
+  await expect(page.getByRole('heading', { name: 'Nenhuma versão aberta' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeDisabled()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Nenhuma versão aberta' })).toBeVisible()
+  await page.locator('.new-version-tab').click()
+  await page.getByLabel('Nome da versão').fill('Recomeço')
+  await page.getByRole('button', { name: 'Criar versão', exact: true }).click()
+  await expect(page.getByRole('tab', { name: 'Recomeço', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await expect(page.locator('.resume h1')).toHaveText('Seu nome')
 })

@@ -11,7 +11,9 @@ pnpm install
 pnpm run dev
 ```
 
-Abra http://127.0.0.1:5173. Edite conteúdo/design e clique em **Salvar versão** para atualizar os arquivos do repositório. **Nova versão para uma vaga** copia o currículo aberto. Rascunhos ficam no navegador até salvar. **Recarregar do arquivo** lê alterações feitas externamente por você ou pela IA; pede confirmação antes de substituir um rascunho.
+Abra http://127.0.0.1:5173. Edite conteúdo/design e clique em **Salvar versão** para atualizar os arquivos do repositório. **+ Nova Versão** copia o currículo aberto. Rascunhos ficam no navegador até salvar. **Recarregar do arquivo** lê alterações feitas externamente por você ou pela IA; pede confirmação antes de substituir um rascunho.
+
+As versões aparecem em abas abaixo do header. **+ Nova Versão** fica no final e abre a cópia em uma nova aba. O **×**, o botão do meio do mouse, três cliques rápidos na aba ou a tecla **Delete** abrem a confirmação: **fechar significa excluir**. Confirmar remove a versão e seus rascunhos; no modo local, remove também seus três arquivos de `content/cv`. Exclusões aparecem no Git para revisão e commit. A interface permite fechar todas as abas e criar um novo currículo vazio.
 
 ## Arquivos
 
@@ -56,7 +58,7 @@ pnpm run build
 pnpm run preview
 ```
 
-O build inclui versões existentes em `content/cv` naquele momento. Em site estático, edições são rascunhos locais; use **Baixar arquivos** para exportar `.md`, `.layout.json`, `.meta.json`, coloque em `content/cv` e reconstrua. A API de gravação só existe em `pnpm run dev` em localhost.
+O build inclui versões existentes em `content/cv` naquele momento. Em site estático, edições são rascunhos locais; use **Baixar arquivos** para exportar `.md`, `.layout.json`, `.meta.json`, coloque em `content/cv` e reconstrua. Fechar abas neste modo oculta as versões apenas neste navegador, inclusive após recarregar; os arquivos do projeto permanecem intactos. A API de gravação só existe em `pnpm run dev` em localhost.
 
 ## shadcn MCP
 

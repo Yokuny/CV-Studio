@@ -7,7 +7,6 @@ import {
   Code2,
   Copy,
   FileText,
-  FolderGit2,
   LayoutTemplate,
   LoaderCircle,
   Minus,
@@ -51,6 +50,7 @@ import {
 } from '@/lib/model'
 import {
   bundledVersions,
+  deleteVersion,
   download,
   loadVersions,
   saveVersion,
@@ -58,6 +58,23 @@ import {
 } from '@/lib/repository'
 
 const draftKey = 'cv-studio:drafts:v1'
+const hiddenKey = 'cv-studio:hidden-versions:v1'
+const emptyVersion: Version = {
+  id: '',
+  name: 'Novo currículo',
+  markdown: '# Seu nome\n\n',
+  job: '',
+  layout: defaultLayout,
+  revision: null,
+}
+function hiddenVersions(): string[] {
+  try {
+    const ids = JSON.parse(localStorage.getItem(hiddenKey) ?? '[]')
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
 function readDrafts(): Version[] {
   try {
     const value = JSON.parse(localStorage.getItem(draftKey) ?? '[]')
@@ -88,6 +105,9 @@ export default function App() {
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState('')
   const [newOpen, setNewOpen] = useState(false)
+  const [closing, setClosing] = useState<Version | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [versionName, setVersionName] = useState('')
   const [tab, setTab] = useState('design')
   const [zoom, setZoom] = useState(0.85)
@@ -96,11 +116,14 @@ export default function App() {
   const [help, setHelp] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [headerHeight, setHeaderHeight] = useState(68)
+  const [actionHeight, setActionHeight] = useState(68)
+  const tabsRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLElement>(null)
   const paperRef = useRef<HTMLElement>(null)
   const workspaceRef = useRef<HTMLDivElement>(null)
   const importRef = useRef<HTMLInputElement>(null)
-  const current = versions.find((v) => v.id === activeId) ?? versions[0]
+  const current = versions.find((v) => v.id === activeId) ?? versions[0] ?? emptyVersion
+  const hasVersion = versions.length > 0
   const dirty = saved[current.id] !== snapshot(current)
   const scale = Math.min(zoom, Math.max(0.2, (availableWidth - 48) / 794))
   const pages = Math.max(
@@ -114,10 +137,13 @@ export default function App() {
     let cancelled = false
     loadVersions().then(({ versions: disk, writable }) => {
       if (cancelled) return
-      const drafts = readDrafts()
+      const hidden = writable ? [] : hiddenVersions()
+      disk = disk.filter((v) => !hidden.includes(v.id))
+      const drafts = readDrafts().filter((v) => !hidden.includes(v.id))
       const merged = disk.map((v) => drafts.find((d) => d.id === v.id) ?? v)
       merged.push(...drafts.filter((d) => !disk.some((v) => v.id === d.id)))
       setVersions(merged)
+      setActiveId(merged.find((v) => v.id === 'base')?.id ?? merged[0]?.id ?? '')
       setWritable(writable)
       setSaved(Object.fromEntries(disk.map((v) => [v.id, snapshot(v)])))
       setReady(true)
@@ -157,11 +183,13 @@ export default function App() {
     const observer = new ResizeObserver(() => {
       setPaperHeight(paper.offsetHeight)
       setAvailableWidth(workspace.clientWidth)
-      setHeaderHeight(header.offsetHeight)
+      setActionHeight(header.offsetHeight)
+      setHeaderHeight(header.offsetHeight + (tabsRef.current?.offsetHeight ?? 0))
     })
     observer.observe(paper)
     observer.observe(workspace)
     observer.observe(header)
+    if (tabsRef.current) observer.observe(tabsRef.current)
     return () => observer.disconnect()
   }, [])
   useEffect(() => {
@@ -172,6 +200,55 @@ export default function App() {
     const timer = setTimeout(() => setNotice(''), 8500)
     return () => clearTimeout(timer)
   }, [notice])
+
+  useEffect(() => {
+    document
+      .getElementById(`version-tab-${activeId}`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [activeId])
+
+  function requestClose(version: Version) {
+    if (saving || deleting || !ready) return
+    setDeleteError('')
+    setClosing(version)
+  }
+  async function closeVersion() {
+    if (!closing) return
+    const target = closing
+    setDeleting(true)
+    setDeleteError('')
+    const drafts = readDrafts()
+    try {
+      // Remove the draft before filesystem changes can trigger Vite's reload.
+      localStorage.setItem(draftKey, JSON.stringify(drafts.filter((v) => v.id !== target.id)))
+      if (writable) await deleteVersion(target)
+      else
+        localStorage.setItem(
+          hiddenKey,
+          JSON.stringify([...new Set([...hiddenVersions(), target.id])]),
+        )
+      const remaining = versions.filter((v) => v.id !== target.id)
+      if (current.id === target.id) {
+        const index = versions.findIndex((v) => v.id === target.id)
+        setActiveId(remaining[Math.min(index, remaining.length - 1)]?.id ?? '')
+      }
+      setVersions(remaining)
+      setSaved((previous) => {
+        const next = { ...previous }
+        delete next[target.id]
+        return next
+      })
+      setClosing(null)
+      setNotice(
+        `“${target.name}” excluída. ${writable ? 'Faça um commit para registrar a exclusão no Git.' : 'Os arquivos do projeto permanecem no repositório.'}`,
+      )
+    } catch (error) {
+      localStorage.setItem(draftKey, JSON.stringify(drafts))
+      setDeleteError((error as Error).message)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   function update(changes: Partial<Version> | ((v: Version) => Partial<Version>)) {
     setVersions((list) =>
@@ -209,6 +286,10 @@ export default function App() {
       setNotice('Já existe uma versão com esse nome. Escolha outro.')
       return
     }
+    localStorage.setItem(
+      hiddenKey,
+      JSON.stringify(hiddenVersions().filter((hidden) => hidden !== id)),
+    )
     setVersions((list) => [
       ...list,
       { ...current, id, name: versionName.trim().slice(0, 120), revision: null },
@@ -276,7 +357,12 @@ export default function App() {
   return (
     <div
       className="app-shell"
-      style={{ '--app-header-height': `${headerHeight}px` } as CSSProperties}
+      style={
+        {
+          '--app-header-height': `${headerHeight}px`,
+          '--action-header-height': `${actionHeight}px`,
+        } as CSSProperties
+      }
     >
       <style>{`@page { size: A4; margin: ${current.layout.margin}mm; }`}</style>
       <header ref={headerRef} className="app-header no-print">
@@ -338,67 +424,107 @@ export default function App() {
             variant="outline"
             aria-label="Salvar versão"
             onClick={save}
-            disabled={!ready || !writable || saving || !dirty}
+            disabled={!ready || !writable || saving || deleting || !hasVersion || !dirty}
           >
             <span className="inline-flex">
               {saving ? <LoaderCircle className="animate-spin" /> : <Save />}
             </span>
             <span className="button-label">Salvar versão</span>
           </Button>
-          <Button onClick={() => window.print()} disabled={!ready}>
+          <Button onClick={() => window.print()} disabled={!ready || !hasVersion}>
             <ArrowDownToLine />
             <span>Exportar PDF</span>
           </Button>
         </div>
       </header>
 
-      <div className={`studio-layout ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+      <div ref={tabsRef} className="version-bar no-print">
+        <div className="version-tabs" role="tablist" aria-label="Versões do currículo">
+          {versions.map((v, index) => (
+            <div key={v.id} className={`version-tab ${current.id === v.id ? 'active' : ''}`}>
+              <button
+                type="button"
+                role="tab"
+                aria-label={v.name}
+                aria-description={
+                  saved[v.id] !== snapshot(v) ? 'Alterações em rascunho' : undefined
+                }
+                id={`version-tab-${v.id}`}
+                aria-controls="resume-panel"
+                aria-selected={current.id === v.id}
+                tabIndex={current.id === v.id ? 0 : -1}
+                className="version-tab-select"
+                onMouseDown={(event) => {
+                  if (event.button === 1) event.preventDefault()
+                }}
+                onAuxClick={(event) => {
+                  if (event.button === 1) {
+                    event.preventDefault()
+                    requestClose(v)
+                  }
+                }}
+                title={v.name}
+                onClick={(event) => {
+                  setActiveId(v.id)
+                  if (event.detail === 3) requestClose(v)
+                }}
+                onKeyDown={(event) => {
+                  const next =
+                    event.key === 'ArrowRight'
+                      ? (index + 1) % versions.length
+                      : event.key === 'ArrowLeft'
+                        ? (index - 1 + versions.length) % versions.length
+                        : event.key === 'Home'
+                          ? 0
+                          : event.key === 'End'
+                            ? versions.length - 1
+                            : null
+                  if (next !== null) {
+                    event.preventDefault()
+                    setActiveId(versions[next].id)
+                    document.getElementById(`version-tab-${versions[next].id}`)?.focus()
+                  }
+                  if (event.key === 'Delete') {
+                    event.preventDefault()
+                    requestClose(v)
+                  }
+                }}
+              >
+                <FileText size={15} />
+                <span>{v.name}</span>
+                {saved[v.id] !== snapshot(v) && (
+                  <span className="draft-indicator" title="Alterações em rascunho" />
+                )}
+              </button>
+              <button
+                type="button"
+                className="version-tab-close"
+                aria-label={`Fechar e excluir ${v.name}`}
+                title="Fechar significa excluir esta versão"
+                disabled={!ready || saving || deleting}
+                onClick={() => requestClose(v)}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <Button
+            variant="ghost"
+            className="new-version-tab"
+            onClick={() => setNewOpen(true)}
+            disabled={!ready || deleting}
+          >
+            <Plus size={15} /> Nova Versão
+          </Button>
+        </div>
+      </div>
+      <div className={`studio-layout ${sidebarOpen && hasVersion ? '' : 'sidebar-collapsed'}`}>
         <aside
           id="editor-sidebar"
           className="sidebar no-print"
-          hidden={!sidebarOpen}
-          aria-label="Versões e ajustes do currículo"
+          hidden={!sidebarOpen || !hasVersion}
+          aria-label="Ajustes do currículo"
         >
-          <div className="version-section">
-            <div className="section-caption">
-              <span>
-                <FolderGit2 size={15} /> Versões
-              </span>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Criar versão"
-                onClick={() => setNewOpen(true)}
-              >
-                <Plus />
-              </Button>
-            </div>
-            <div className="version-list">
-              {versions.map((v) => (
-                <button
-                  type="button"
-                  key={v.id}
-                  className={`version-item ${current.id === v.id ? 'active' : ''}`}
-                  onClick={() => setActiveId(v.id)}
-                >
-                  <FileText size={17} />
-                  <span>
-                    <strong>{v.name}</strong>
-                    <small>
-                      {v.id === 'base' ? 'Sua fonte de verdade' : 'Personalizado por oportunidade'}
-                    </small>
-                  </span>
-                  {saved[v.id] !== snapshot(v) && (
-                    <span className="draft-indicator" title="Alterações em rascunho" />
-                  )}
-                </button>
-              ))}
-            </div>
-            <button type="button" className="new-version" onClick={() => setNewOpen(true)}>
-              <Plus size={15} /> Nova versão para uma vaga
-            </button>
-          </div>
-
           <Tabs value={tab} onValueChange={setTab} className="editor-tabs">
             <TabsList className="w-full">
               <TabsTrigger value="design">
@@ -628,8 +754,24 @@ export default function App() {
           </Tabs>
         </aside>
 
-        <main className="workspace" ref={workspaceRef}>
-          <div className="paper-stage">
+        <main
+          className="workspace"
+          ref={workspaceRef}
+          id="resume-panel"
+          role="tabpanel"
+          aria-labelledby={hasVersion ? `version-tab-${current.id}` : undefined}
+        >
+          {!hasVersion && (
+            <div className="empty-workspace">
+              <FileText size={32} />
+              <h1>Nenhuma versão aberta</h1>
+              <p>Crie uma nova versão para começar seu currículo.</p>
+              <Button onClick={() => setNewOpen(true)}>
+                <Plus /> Nova Versão
+              </Button>
+            </div>
+          )}
+          <div className="paper-stage" hidden={!hasVersion}>
             <div className="paper-info no-print" style={{ width: 794 * scale }}>
               <div className="paper-document">
                 <h1 title={current.name}>{current.name}</h1>
@@ -662,7 +804,7 @@ export default function App() {
               </article>
             </div>
           </div>
-          <div className="preview-footnote no-print">
+          <div className="preview-footnote no-print" hidden={!hasVersion}>
             <Check size={14} />
             <span>Texto selecionável no PDF · Layout em uma coluna</span>
             <button type="button" onClick={() => setHelp(!help)} aria-expanded={help}>
@@ -677,7 +819,7 @@ export default function App() {
               final na impressão.
             </div>
           )}
-          {!writable && ready && (
+          {!writable && ready && hasVersion && (
             <div className="static-banner no-print">
               Modo de prévia: rascunhos ficam neste navegador.{' '}
               <button type="button" onClick={exportSources}>
@@ -701,12 +843,52 @@ export default function App() {
           </Button>
         </div>
       )}
+      <Dialog
+        open={closing !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setClosing(null)
+        }}
+      >
+        <DialogContent
+          onEscapeKeyDown={(event) => {
+            if (deleting) event.preventDefault()
+          }}
+          onPointerDownOutside={(event) => {
+            if (deleting) event.preventDefault()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Fechar significa excluir</DialogTitle>
+            <DialogDescription>
+              Fechar a aba “{closing?.name}” exclui esta versão e suas alterações em rascunho.
+              {writable
+                ? ' Os arquivos Markdown, layout e metadados também serão removidos de content/cv. Versões já registradas em commits continuam no histórico do Git.'
+                : ' Nesta prévia, a exclusão vale apenas neste navegador. Os arquivos do projeto não serão removidos.'}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm text-destructive">
+              {deleteError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" disabled={deleting} onClick={() => setClosing(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" disabled={deleting} onClick={closeVersion}>
+              {deleting && <LoaderCircle className="animate-spin" />}Fechar e excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Uma versão, uma oportunidade</DialogTitle>
             <DialogDescription>
-              Comece com uma cópia de “{current.name}”. O currículo original permanece disponível.
+              {hasVersion
+                ? `Comece com uma cópia de “${current.name}”. O currículo original permanece disponível.`
+                : 'Crie um currículo e escreva seu conteúdo em Markdown.'}
             </DialogDescription>
           </DialogHeader>
           <form

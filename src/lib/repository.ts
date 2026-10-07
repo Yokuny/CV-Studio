@@ -61,6 +61,15 @@ export async function saveVersion(version: Version): Promise<string> {
   if (!response.ok) throw new Error(data.error ?? 'Não foi possível salvar.')
   return data.revision
 }
+export async function deleteVersion(version: Version): Promise<void> {
+  const response = await fetch('/api/resumes', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: version.id, expectedRevision: version.revision }),
+  })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error ?? 'Não foi possível excluir.')
+}
 export function download(filename: string, text: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }))
   const link = document.createElement('a')

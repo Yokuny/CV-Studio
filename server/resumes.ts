@@ -64,6 +64,7 @@ export function resumeApi(): Plugin {
             return
           }
           if (req.method === 'GET') {
+            await queue
             const ids = (await fs.readdir(root))
               .filter((f) => /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(f))
               .map((f) => f.slice(0, -3))
@@ -76,7 +77,7 @@ export function resumeApi(): Plugin {
             reply(200, resumes)
             return
           }
-          if (req.method !== 'POST') {
+          if (req.method !== 'POST' && req.method !== 'DELETE') {
             reply(405, { error: 'Método não permitido.' })
             return
           }
@@ -92,9 +93,12 @@ export function resumeApi(): Plugin {
               return
             }
           }
-          const { resume, expectedRevision } = JSON.parse(body)
+          const { resume, id, expectedRevision } = JSON.parse(body)
+          const deleting = req.method === 'DELETE'
           if (
-            !validResume(resume) ||
+            (deleting
+              ? typeof id !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)
+              : !validResume(resume)) ||
             !(expectedRevision === null || typeof expectedRevision === 'string')
           ) {
             reply(400, { error: 'Conteúdo ou tokens inválidos.' })
@@ -102,9 +106,10 @@ export function resumeApi(): Plugin {
           }
           // Serializing saves makes the conflict check meaningful even for simultaneous tabs.
           const save = queue.then(async () => {
+            const targetId = deleting ? id : resume.id
             let current: Resume | undefined
             try {
-              current = await load(resume.id)
+              current = await load(targetId)
             } catch (e) {
               if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
             }
@@ -113,6 +118,23 @@ export function resumeApi(): Plugin {
                 error:
                   'Esta versão mudou no disco. Baixe seu Markdown antes de recarregar para comparar as alterações.',
               })
+              return
+            }
+            if (deleting) {
+              const targets = ['md', 'layout.json', 'meta.json'].map((ext) =>
+                path.join(root, `${targetId}.${ext}`),
+              )
+              // Inspect every companion file before removing any of them.
+              for (const target of targets) {
+                try {
+                  const stat = await fs.lstat(target)
+                  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Arquivo inválido.')
+                } catch (e) {
+                  if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
+                }
+              }
+              for (const target of targets) await fs.rm(target, { force: true })
+              reply(200, { deleted: targetId })
               return
             }
             const files = [
