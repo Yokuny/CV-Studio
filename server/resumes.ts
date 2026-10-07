@@ -1,20 +1,34 @@
-import { createHash } from 'node:crypto';
-import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
-import { defaultLayout, type Resume, validLayout, validResume } from '../src/lib/model';
+import { validResume } from '../src/lib/model';
+import { companions, type ResumeFiles, resumeFiles, revision, slugPattern } from './repository';
 
-export function revision(resume: Resume) {
-  const { id, markdown, layout, name } = resume;
-  return createHash('sha256').update(JSON.stringify({ id, markdown, layout, name })).digest('hex');
-}
+export { revision } from './repository';
+/** Custom HMR event sent when files in content/cv change, by the UI, the CLI or an agent. */
+export const changedEvent = 'cv-studio:changed';
+
 export function resumeApi(): Plugin {
-  let root: string;
+  let files: ResumeFiles;
   let queue = Promise.resolve();
+  let timer: ReturnType<typeof setTimeout> | undefined;
   return {
     name: 'local-resume-api',
     configResolved(config) {
-      root = path.join(config.root, 'content/cv');
+      files = resumeFiles(path.join(config.root, 'content/cv'));
+    },
+    // Files in content/cv are part of the module graph through the bundled-resumes glob. Instead of
+    // letting Vite reload the page, which would drop the open tab, the UI merges them via changedEvent.
+    hotUpdate({ file }) {
+      if (path.dirname(file) !== files.root) return;
+      const name = path.basename(file);
+      if (!companions.some((ext) => name.endsWith(`.${ext}`))) return;
+      if (this.environment.name === 'client') {
+        // A save touches three files; one event lets the UI reload them together.
+        clearTimeout(timer);
+        const { hot } = this.environment;
+        timer = setTimeout(() => hot.send({ type: 'custom', event: changedEvent }), 150);
+      }
+      return [];
     },
     configureServer(server) {
       server.middlewares.use('/api/resumes', async (req, res) => {
@@ -34,52 +48,16 @@ export function resumeApi(): Plugin {
           reply(403, { error: 'A gravação só é permitida pela interface local.' });
           return;
         }
-        const readSafe = async (filename: string) => {
-          const target = path.join(root, filename);
-          const stat = await fs.lstat(target);
-          if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Arquivo inválido.');
-          return fs.readFile(target, 'utf8');
-        };
-        const legacyRevisions = new Map<string, string>();
-        const load = async (id: string): Promise<Resume> => {
-          const markdown = await readSafe(`${id}.md`);
-          let layout = defaultLayout;
-          let meta = { name: id === 'base' ? 'Currículo base' : id, job: '' };
-          try {
-            const candidate = JSON.parse(await readSafe(`${id}.layout.json`));
-            if (validLayout(candidate)) layout = candidate;
-          } catch (e) {
-            if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-          }
-          try {
-            meta = JSON.parse(await readSafe(`${id}.meta.json`));
-          } catch (e) {
-            if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-          }
-          // Old drafts can still save safely after the job field is retired.
-          legacyRevisions.set(
-            id,
-            createHash('sha256')
-              .update(JSON.stringify({ id, markdown, layout, ...meta }))
-              .digest('hex'),
-          );
-          const resume = { id, markdown, layout, name: meta.name };
-          if (!validResume(resume)) throw new Error('Versão inválida no repositório.');
-          return resume;
-        };
         try {
-          if ((await fs.realpath(root)) !== root) {
+          if (!(await files.verifyRoot())) {
             reply(403, { error: 'Diretório de currículos inválido.' });
             return;
           }
           if (req.method === 'GET') {
             await queue;
-            const ids = (await fs.readdir(root))
-              .filter((f) => /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(f))
-              .map((f) => f.slice(0, -3));
             const resumes = await Promise.all(
-              ids.map(async (id) => {
-                const r = await load(id);
+              (await files.ids()).map(async (id) => {
+                const r = await files.load(id);
                 return { ...r, revision: revision(r) };
               }),
             );
@@ -105,7 +83,7 @@ export function resumeApi(): Plugin {
           const { resume, id, expectedRevision } = JSON.parse(body);
           const deleting = req.method === 'DELETE';
           if (
-            (deleting ? typeof id !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) : !validResume(resume)) ||
+            (deleting ? typeof id !== 'string' || !slugPattern.test(id) : !validResume(resume)) ||
             !(expectedRevision === null || typeof expectedRevision === 'string')
           ) {
             reply(400, { error: 'Conteúdo ou tokens inválidos.' });
@@ -114,58 +92,18 @@ export function resumeApi(): Plugin {
           // Serializing saves makes the conflict check meaningful even for simultaneous tabs.
           const save = queue.then(async () => {
             const targetId = deleting ? id : resume.id;
-            let current: Resume | undefined;
-            try {
-              current = await load(targetId);
-            } catch (e) {
-              if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-            }
-            if (
-              (current ? revision(current) : null) !== expectedRevision &&
-              !(current && legacyRevisions.get(targetId) === expectedRevision)
-            ) {
+            if (!files.matches(await files.find(targetId), expectedRevision)) {
               reply(409, {
-                error:
-                  'Esta versão mudou no disco. Baixe seu Markdown antes de recarregar para comparar as alterações.',
+                error: 'Esta versão mudou no disco. Recarregue do arquivo ou baixe seu Markdown para comparar.',
               });
               return;
             }
             if (deleting) {
-              const targets = ['md', 'layout.json', 'meta.json'].map((ext) => path.join(root, `${targetId}.${ext}`));
-              // Inspect every companion file before removing any of them.
-              for (const target of targets) {
-                try {
-                  const stat = await fs.lstat(target);
-                  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Arquivo inválido.');
-                } catch (e) {
-                  if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-                }
-              }
-              for (const target of targets) await fs.rm(target, { force: true });
+              await files.remove(targetId);
               reply(200, { deleted: targetId });
               return;
             }
-            const files = [
-              [`${resume.id}.md`, resume.markdown],
-              [`${resume.id}.layout.json`, `${JSON.stringify(resume.layout, null, 2)}\n`],
-              [`${resume.id}.meta.json`, `${JSON.stringify({ name: resume.name }, null, 2)}\n`],
-            ];
-            for (const [filename, data] of files) {
-              const target = path.join(root, filename);
-              try {
-                if ((await fs.lstat(target)).isSymbolicLink()) throw new Error('Arquivo inválido.');
-              } catch (e) {
-                if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-              }
-              const temporary = `${target}.${createHash('sha256').update(String(Math.random())).digest('hex').slice(0, 12)}.tmp`;
-              try {
-                await fs.writeFile(temporary, data, { flag: 'wx' });
-                await fs.rename(temporary, target);
-              } finally {
-                await fs.rm(temporary, { force: true });
-              }
-            }
-            reply(200, { revision: revision(resume) });
+            reply(200, { revision: await files.write(resume) });
           });
           queue = save.catch(() => {});
           await save;

@@ -1,5 +1,6 @@
 import type { Ref, RefObject } from 'react';
 import { AlignmentControls } from '@/components/alignment-controls';
+import { ConflictBanner } from '@/components/conflict-banner';
 import { EmptyWorkspace } from '@/components/empty-workspace';
 import { ExportHelp } from '@/components/export-help';
 import { PaperInfo } from '@/components/paper-info';
@@ -31,16 +32,18 @@ export function Workspace({ ref, paperRef }: { ref?: Ref<HTMLElement>; paperRef:
       {!hasVersion && <EmptyWorkspace />}
       {hasVersion && (
         <>
-          <div
-            className="document-toolbar no-print"
-            role="toolbar"
-            aria-label="Zoom do currículo"
-            style={{ width: pageWidth * scale }}
-          >
-            {preview === 'pdf' && <AlignmentControls selectedBlocks={selectedBlocks} />}
-            <ZoomControls />
+          <div className="document-header no-print" style={{ width: pageWidth * scale }}>
+            <div className="document-toolbar" role="toolbar" aria-label="Zoom do currículo">
+              <div className="document-toolbar-status">
+                <ConflictBanner />
+                <PaperInfo />
+              </div>
+              <div className="document-toolbar-controls">
+                {preview === 'pdf' && <AlignmentControls selectedBlocks={selectedBlocks} />}
+                <ZoomControls />
+              </div>
+            </div>
           </div>
-          <PaperInfo />
           {preview !== 'pdf' && <SourcePreview mode={preview} />}
         </>
       )}

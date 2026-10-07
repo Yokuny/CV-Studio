@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Resumes are content, not markup: scanning them would make Tailwind reload the page on every save. */
+@source not "../content";
 
 @theme inline {
   --color-background: var(--background);
@@ -83,17 +85,6 @@ button:active:not(:disabled) {
   align-items: center;
   gap: 12px;
 }
-.paper-document {
-  min-width: 0;
-}
-.paper-document h1 {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .sidebar-toggle {
   color: #6e6e73;
   flex-shrink: 0;
@@ -137,14 +128,6 @@ button:active:not(:disabled) {
   height: 30px;
   padding-inline: 10px;
   font-size: 12px;
-}
-.status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #86868b;
-  display: inline-block;
-  flex-shrink: 0;
 }
 .studio-layout {
   display: grid;
@@ -470,30 +453,10 @@ body.is-scrubbing * {
   color: #515154;
   margin: 12px 0;
 }
-.sidebar-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 20px;
-  margin-top: auto;
-  border-top: 1px solid #e8e8ed;
-  font-size: 10px;
-  color: #86868b;
-}
 .workspace {
   padding: 32px 40px;
   min-width: 0;
   background: #f5f5f7;
-}
-.preview-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  margin-top: 3px;
-  color: #6e6e73;
-  font-size: 10px;
-  white-space: nowrap;
 }
 .preview-toolbar {
   grid-area: preview;
@@ -521,18 +484,69 @@ body.is-scrubbing * {
   background: #dedee3;
   margin: 0 2px;
 }
-.document-toolbar {
+.document-header {
   position: sticky;
   top: calc(var(--app-header-height, 68px) + 12px);
   z-index: 20;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 7px;
   max-width: 100%;
-  margin: 0 auto 16px;
+  margin: 0 auto 12px;
+  background: transparent;
+}
+.document-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-height: 24px;
+  padding: 0;
+  background: transparent;
   color: #515154;
-  pointer-events: none;
+}
+.document-toolbar-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.document-toolbar-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 7px;
+  margin-left: auto;
+}
+.conflict-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+}
+.conflict-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #926117;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.conflict-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c48a2a;
+}
+.conflict-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.document-toolbar button:hover:not(:disabled) {
+  background: transparent;
+  color: #1d1d1f;
 }
 .selection-alignment {
   display: flex;
@@ -540,7 +554,8 @@ body.is-scrubbing * {
   gap: 4px;
 }
 .selection-alignment button[aria-pressed="true"] {
-  background: #e8e8ed;
+  background: transparent;
+  color: #0071e3;
 }
 .document-toolbar button {
   background: transparent;
@@ -599,16 +614,6 @@ body.is-scrubbing * {
 }
 .source-view .paper-stage {
   display: none;
-}
-.paper-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  margin-bottom: 14px;
-  max-width: 100%;
-  margin-inline: auto;
 }
 .paper-metadata {
   display: flex;
@@ -770,16 +775,6 @@ body.is-scrubbing * {
   .brand-icon {
     display: none;
   }
-  .paper-document {
-    flex: 1;
-  }
-  .paper-document h1 {
-    min-width: 0;
-  }
-  .preview-badge {
-    margin-top: 0;
-    flex-shrink: 0;
-  }
   .header-actions {
     gap: 6px;
   }
@@ -808,9 +803,6 @@ body.is-scrubbing * {
     height: auto;
     border-right: 0;
     border-bottom: 1px solid #e5e5ea;
-  }
-  .sidebar-footer {
-    display: none;
   }
   .design-panel {
     padding: 16px 20px 0;

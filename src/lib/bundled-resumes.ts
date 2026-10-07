@@ -17,6 +17,7 @@ const metadata = import.meta.glob('/content/cv/*.meta.json', {
 
 export function bundledVersions(): Version[] {
   return Object.entries(markdowns)
+    .filter(([path]) => /\/[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(path))
     .map(([path, markdown]) => {
       const id = path.slice(path.lastIndexOf('/') + 1).replace(/\.md$/, '');
       const candidate = layouts[path.replace(/\.md$/, '.layout.json')];

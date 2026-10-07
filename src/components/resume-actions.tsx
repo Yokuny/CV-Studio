@@ -46,7 +46,7 @@ export function ResumeActions() {
         />
         <ActionButton
           label="Save"
-          title="Save version"
+          title="Salvar agora (no modo local, as edições também são salvas automaticamente)"
           icon={<span className="inline-flex">{saving ? <LoaderCircle className="animate-spin" /> : <Save />}</span>}
           onClick={save}
           disabled={disabled || !canSave || saving || deleting}

@@ -24,10 +24,6 @@
     {
       "includes": ["src/index.css"],
       "linter": { "rules": { "complexity": { "noImportantStyles": "off" } } }
-    },
-    {
-      "includes": ["src/components/ui/slider.tsx"],
-      "linter": { "rules": { "suspicious": { "noArrayIndexKey": "off" } } }
     }
   ]
 }

@@ -12,9 +12,9 @@
 
 **Contexto:** uma SPA hospedada não grava diretamente no checkout do Git.
 
-**Decisão:** plugin Vite fornece GET/POST/DELETE local. Escrita valida slug, conteúdo e tokens, restringe origem/Host, rejeita links simbólicos e verifica revisão SHA-256 antes de sobrescrever. Rascunhos ficam no localStorage. Em build estático, o usuário baixa os arquivos e os coloca no repositório.
+**Decisão:** plugin Vite fornece GET/POST/DELETE local. Escrita valida slug, conteúdo e tokens, restringe origem/Host, rejeita links simbólicos e verifica revisão SHA-256 antes de sobrescrever. No modo local, aba = arquivo: criar uma versão grava o trio e as edições têm autosave (~0,8 s). O plugin intercepta `hotUpdate` de `content/cv` e emite `cv-studio:changed`; a UI relê os arquivos e mescla (`mergeDisk`): abas limpas seguem o disco, arquivos novos abrem abas e arquivos removidos as fecham. Uma edição pendente sobre arquivo alterado vira conflito, com autosave pausado. O localStorage guarda só o que ainda não foi gravado. Em build estático, o usuário baixa os arquivos e os coloca no repositório.
 
-**Consequência:** não precisa de credenciais GitHub. Salvar não faz commit/push. Alterações externas são detectadas; pode-se baixar o rascunho e recarregar o arquivo. Cada arquivo tem rename atômico; os três não formam uma transação conjunta se o processo falhar.
+**Consequência:** não precisa de credenciais GitHub. A UI não faz commit/push. `content` fica fora do scan do Tailwind, que de outra forma recarregaria a página a cada gravação. Cada arquivo tem rename atômico; os três não formam uma transação conjunta se o processo falhar.
 
 ## 003 — PDF nativo
 
@@ -28,9 +28,9 @@
 
 **Contexto:** adaptação por vaga será feita com IA.
 
-**Decisão:** skills `cv-tailor` e `cv-review`. A personalização acontece na conversa com Codex/Claude. A interface não possui aba Vaga, não gera prompts e não chama modelos nem exige chaves.
+**Decisão:** uma skill do projeto, `cv-studio` (`.agents/skills`, com symlink em `.claude/skills`), substitui `cv-tailor`, `cv-review` e o pacote genérico `cv-resume-builder`, que contradizia as regras do projeto (estimar números, evitar tabelas). A skill usa o CLI `pnpm cv` (`list`, `new`, `check`), que compartilha `server/repository.ts` com a API, e faz commit apenas dos arquivos da versão (`cv(<slug>): …`), sem push. A interface não possui aba Vaga, não gera prompts e não chama modelos nem exige chaves.
 
-**Consequência:** fatos continuam sob revisão do candidato e alterações ficam explícitas no Git.
+**Consequência:** fatos continuam sob revisão do candidato; cada adaptação vira um commit isolado e revisável no Git.
 
 ## Fonte e pontos a confirmar
 

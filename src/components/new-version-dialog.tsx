@@ -20,7 +20,9 @@ export function NewVersionDialog() {
   const onOpenChange = useUi((s) => s.setNewVersionOpen);
   const sourceName = useResumes((s) => (selectHasVersion(s) ? selectCurrent(s).name : undefined));
   const onCreate = useResumes((s) => s.create);
+  const writable = useResumes((s) => s.writable);
   const [name, setName] = useState('');
+  const [creating, setCreating] = useState(false);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -33,9 +35,12 @@ export function NewVersionDialog() {
           </DialogDescription>
         </DialogHeader>
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            if (!onCreate(name)) return;
+            setCreating(true);
+            const created = await onCreate(name);
+            setCreating(false);
+            if (!created) return;
             onOpenChange(false);
             setName('');
           }}
@@ -50,12 +55,14 @@ export function NewVersionDialog() {
             maxLength={120}
             onChange={(e) => setName(e.target.value)}
           />
-          <p className="small-note mt-3">Arquivo: content/cv/{slugify(name) || 'nome-da-vaga'}.md</p>
+          <p className="small-note mt-3">
+            {writable ? 'Grava agora' : 'Arquivo ao baixar'}: content/cv/{slugify(name) || 'nome-da-vaga'}.md
+          </p>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={!name.trim()}>
+            <Button type="submit" disabled={!name.trim() || creating}>
               <Plus /> Criar versão
             </Button>
           </DialogFooter>

@@ -10,19 +10,21 @@ Desenvolvedor Full Stack com mais de 5 anos de experiência em construção de s
 
 ## Competências técnicas
 
-| Área | Tecnologias e práticas |
-| --- | --- |
-| Backend | Node.js, TypeScript, NestJS, Fastify, Express, APIs REST, GraphQL, WebSockets |
-| Mensageria | RabbitMQ, Kafka, AWS SQS, AWS SNS - sistemas assíncronos de alta escala |
-| Mobile | React Native - apps publicados na Play Store e App Store |
-| Frontend | React.js, Next.js, Angular, TanStack Router/Query, Zustand, Redux, Tailwind, shadcn/ui |
-| Banco de dados | PostgreSQL, SQL, MongoDB (pipelines, vetorial), Redis (cache), TypeORM, Prisma |
-| Cloud & Infra | AWS (EC2, Lambda, S3, API Gateway, SQS, SNS), Docker, Kubernetes, ECS, Serverless |
-| Observabilidade | OpenTelemetry, Prometheus, Grafana, Datadog - logs estruturados, métricas, tracing distribuído |
-| DevOps / CI/CD | GitHub Actions, Docker Compose, pipelines automatizados (build → test → deploy) |
-| Qualidade | SOLID, Clean Code, TDD, BDD, Jest, React Testing Library, SonarQube, ESLint, BiomeJS |
-| Segurança & Auth | OAuth2, JWT, Passkey, criptografia de dados sensíveis, HttpOnly cookies, prevenção XSS/CSRF |
-| Outros | Linux, Cloudflare (CDN/cache), WebSocket, SSR/SSG, multi-tenant, RAG / Busca Vetorial |
+
+| Área                 | Tecnologias e práticas                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| Backend              | Node.js, TypeScript, NestJS, Fastify, Express, APIs REST, GraphQL, WebSockets                  |
+| Mensageria           | RabbitMQ, Kafka, AWS SQS, AWS SNS - sistemas assíncronos de alta escala                        |
+| Mobile               | React Native - apps publicados na Play Store e App Store                                       |
+| Frontend             | React.js, Next.js, Angular, TanStack Router/Query, Zustand, Redux, Tailwind, shadcn/ui         |
+| Banco de dados       | PostgreSQL, SQL, MongoDB (pipelines, vetorial), Redis (cache), TypeORM, Prisma                 |
+| Cloud &amp; Infra    | AWS (EC2, Lambda, S3, API Gateway, SQS, SNS), Docker, Kubernetes, ECS, Serverless              |
+| Observabilidade      | OpenTelemetry, Prometheus, Grafana, Datadog - logs estruturados, métricas, tracing distribuído |
+| DevOps / CI/CD       | GitHub Actions, Docker Compose, pipelines automatizados (build → test → deploy)                |
+| Qualidade            | SOLID, Clean Code, TDD, BDD, Jest, React Testing Library, SonarQube, ESLint, BiomeJS           |
+| Segurança &amp; Auth | OAuth2, JWT, Passkey, criptografia de dados sensíveis, HttpOnly cookies, prevenção XSS/CSRF    |
+| Outros               | Linux, Cloudflare (CDN/cache), WebSocket, SSR/SSG, multi-tenant, RAG / Busca Vetorial          |
+
 
 ## Experiência profissional
 

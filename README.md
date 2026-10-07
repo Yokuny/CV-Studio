@@ -11,7 +11,7 @@ pnpm install
 pnpm run dev
 ```
 
-Abra http://127.0.0.1:5173. Edite conteúdo/design e clique em **Salvar versão** para atualizar os arquivos do repositório. **+ Nova Versão** copia o currículo aberto. Rascunhos ficam no navegador até salvar. **Recarregar do arquivo** lê alterações feitas externamente por você ou pela IA; pede confirmação antes de substituir um rascunho.
+Abra http://127.0.0.1:5173. Cada aba é um arquivo em `content/cv`. **+ Nova Versão** copia o currículo aberto e grava os arquivos na hora. As edições de conteúdo e design são salvas automaticamente (Save força a gravação). Alterações feitas fora da interface, por você, pelo `pnpm cv` ou pela IA, aparecem nas abas sem recarregar a página. Se a aba tinha uma edição ainda não gravada, um aviso oferece **Recarregar do arquivo**, **Baixar meu Markdown** ou **Manter minha versão**.
 
 As versões aparecem em abas abaixo do header. **+ Nova Versão** fica no final e abre a cópia em uma nova aba. O **×**, o botão do meio do mouse, três cliques rápidos na aba ou a tecla **Delete** abrem a confirmação: **fechar significa excluir**. Confirmar remove a versão e seus rascunhos; no modo local, remove também seus três arquivos de `content/cv`. Exclusões aparecem no Git para revisão e commit. A interface permite fechar todas as abas e criar um novo currículo vazio.
 
@@ -23,7 +23,13 @@ content/cv/
   base.layout.json       # tokens de design
   <slug>.md              # versões criadas por vaga
   <slug>.layout.json
-  <slug>.meta.json        # nome da versão
+  <slug>.meta.json       # nome da versão
+```
+
+```sh
+pnpm cv list                                        # versões e status no Git
+pnpm cv new backend-node --name "Backend Node"      # cria a versão a partir do base
+pnpm cv check backend-node                          # valida Markdown, layout e meta
 ```
 
 `react-markdown` + `remark-gfm` renderizam títulos, listas, links e tabelas; HTML bruto não é executado. Conteúdo não fica no React. Variáveis CSS controlam fontes, altura de linha, tamanho do nome, margens, espaçamento e cores. Os tokens podem ser baixados em CSS.
@@ -36,13 +42,13 @@ Clique **Exportar PDF**, escolha **Salvar como PDF**, **A4**, escala **100%** e 
 
 ## IA
 
-Para personalizar por vaga, envie os requisitos e a stack diretamente ao Codex/Claude deste repositório. Skills em `.agents/skills/cv-tailor` e `.agents/skills/cv-review`, orientadas pelo `AGENTS.md`. Em clientes sem descoberta dessa pasta, leia diretamente o `SKILL.md`.
+A skill `cv-studio` (`.agents/skills/cv-studio`, lida pelo Codex; `.claude/skills/cv-studio` é um symlink para o Claude Code) conhece o contrato de arquivos, o CLI e a interface. Ela cria a versão com `pnpm cv new`, adapta o Markdown preservando os fatos do base, valida com `pnpm cv check`, relata evidências e lacunas e **faz commit apenas dos arquivos da versão** (`cv(<slug>): …`), sem push. Com `pnpm run dev` aberto, a nova aba aparece enquanto a IA trabalha.
 
-Exemplo: “Use a skill cv-tailor. Adapte para uma vaga backend Node.js/AWS/mensageria com esta descrição: […]. Crie uma versão, preserve o base e explique requisitos sem evidência.”
+Exemplo: “Adapte o currículo para esta vaga backend Node.js/AWS/mensageria: […]. Explique os requisitos sem evidência.”
 
 ## GitHub
 
-Salvar pela interface altera o checkout. Revise, faça commit e push para registrar o histórico no GitHub. Essas ações não são automáticas.
+A interface grava no checkout, mas não faz commit. A skill commita as versões que cria ou edita; alterações feitas só pela interface você registra assim:
 
 ```sh
 git diff -- content/cv

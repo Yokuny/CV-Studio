@@ -5,6 +5,25 @@ import { expect, test } from '@playwright/test';
 import { elementColorGroups, elementFontGroups, type FontFamily, fontFamilyCss, fonts } from '../../src/lib/model';
 
 const id = `e2e-${Date.now()}`;
+const read = (file: string) => fs.readFile(`content/cv/${file}`, 'utf8').catch(() => '');
+// Local tests edit the base too, and autosave writes it to content/cv; restore it after each test.
+const baseFiles = ['base.md', 'base.layout.json', 'base.meta.json'];
+let baseSnapshot: (string | undefined)[] = [];
+test.beforeAll(async () => {
+  baseSnapshot = await Promise.all(baseFiles.map((f) => fs.readFile(`content/cv/${f}`, 'utf8').catch(() => undefined)));
+});
+test.afterEach(async ({ page }) => {
+  // Let pending autosaves reach the disk before restoring.
+  await page.waitForTimeout(1200);
+  await page.close();
+  await Promise.all(
+    baseFiles.map((f, i) =>
+      baseSnapshot[i] === undefined
+        ? fs.rm(`content/cv/${f}`, { force: true })
+        : fs.writeFile(`content/cv/${f}`, baseSnapshot[i] as string),
+    ),
+  );
+});
 test.afterAll(async () => {
   await Promise.all(
     ['md', 'layout.json', 'meta.json'].map((ext) => fs.rm(path.join('content/cv', `${id}.${ext}`), { force: true })),
@@ -57,13 +76,11 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
   await page.getByRole('button', { name: 'Abrir menu lateral' }).click();
   await expect(page.getByLabel('Família da fonte', { exact: true })).toHaveValue('Georgia');
   await expect(page.locator('.resume h2')).toHaveText('Backend');
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByRole('status')).toContainText('salva em content/cv');
-  expect(await fs.readFile(`content/cv/${id}.md`, 'utf8')).toContain('Node.js e AWS');
-  expect(JSON.parse(await fs.readFile(`content/cv/${id}.layout.json`, 'utf8')).accentColor).toBe('#334455');
-  expect(JSON.parse(await fs.readFile(`content/cv/${id}.layout.json`, 'utf8')).blockAlignments).toEqual([
-    expect.objectContaining({ align: 'justify' }),
-  ]);
+  await expect.poll(() => read(`${id}.md`)).toContain('Node.js e AWS');
+  await expect
+    .poll(async () => JSON.parse((await read(`${id}.layout.json`)) || '{}').blockAlignments)
+    .toEqual([expect.objectContaining({ align: 'justify' })]);
+  expect(JSON.parse(await read(`${id}.layout.json`)).accentColor).toBe('#334455');
   await page.reload();
   await page.getByRole('tab', { name: id, exact: true }).click();
   await expect(page.locator('.resume li')).toHaveCSS('text-align', 'justify');
@@ -124,6 +141,50 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
   expect(errors).toEqual([]);
 });
 
+test('aba é arquivo: acompanha alterações externas e resolve conflitos', async ({ page }) => {
+  const name = `${id}-sync`;
+  const external = `${id}-agente`;
+  const all = [name, external].flatMap((v) =>
+    ['md', 'layout.json', 'meta.json'].map((ext) => `content/cv/${v}.${ext}`),
+  );
+  try {
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled();
+    await page.getByRole('button', { name: 'Nova Versão', exact: true }).click();
+    await page.getByLabel('Nome da versão').fill(name);
+    await page.getByRole('button', { name: 'Criar versão', exact: true }).click();
+    const tab = page.getByRole('tab', { name, exact: true });
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+    expect(JSON.parse(await read(`${name}.meta.json`))).toEqual({ name });
+    // An agent edits the open version: a clean tab follows the file.
+    await fs.writeFile(`content/cv/${name}.md`, '# Felipe Rangel Ribeiro\n\n## Editado pela IA\n');
+    await expect(page.locator('.resume h2')).toHaveText(['Editado pela IA']);
+    // A version created outside the interface opens as a new tab.
+    await fs.writeFile(`content/cv/${external}.md`, '# Felipe Rangel Ribeiro\n\n## Vaga externa\n');
+    await fs.writeFile(`content/cv/${external}.meta.json`, JSON.stringify({ name: external }));
+    await expect(page.getByRole('tab', { name: external, exact: true })).toBeVisible();
+    // Unsaved edits and a concurrent change on disk become a conflict.
+    await page.route('/api/resumes', (route) =>
+      route.request().method() === 'POST' ? route.abort() : route.fallback(),
+    );
+    await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click();
+    await page.getByLabel('Editar código Markdown').fill('# Felipe Rangel Ribeiro\n\n## Minha edição\n');
+    await expect(page.getByRole('status')).toBeVisible();
+    await fs.writeFile(`content/cv/${name}.md`, '# Felipe Rangel Ribeiro\n\n## Nova edição da IA\n');
+    const banner = page.getByRole('alert').filter({ hasText: 'mudou no disco' });
+    await expect(banner).toBeVisible();
+    await page.unroute('/api/resumes');
+    await banner.getByRole('button', { name: 'Recarregar do arquivo' }).click();
+    await expect(banner).toBeHidden();
+    await expect(page.getByLabel('Editar código Markdown')).toHaveValue(/Nova edição da IA/);
+    // Removing the files closes the tab.
+    await Promise.all(['md', 'meta.json'].map((ext) => fs.rm(`content/cv/${external}.${ext}`)));
+    await expect(page.getByRole('tab', { name: external, exact: true })).toHaveCount(0);
+  } finally {
+    await Promise.all(all.map((file) => fs.rm(file, { force: true })));
+  }
+});
+
 test('restaura rascunho e aplica impressão A4 sem a interface', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled();
@@ -133,7 +194,7 @@ test('restaura rascunho e aplica impressão A4 sem a interface', async ({ page }
     .fill('# Rascunho persistente\n\nTexto para testar.\n\n[Link](https://github.com/Yokuny)');
   await page.reload();
   await expect(page.locator('.resume h1')).toHaveText('Rascunho persistente');
-  await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
+  await expect.poll(() => read('base.md')).toContain('# Rascunho persistente');
   await page.evaluate(() => {
     window.print = () => {
       document.documentElement.dataset.printRequested = 'true';
@@ -272,8 +333,7 @@ test('abas confirmam exclusão, aceitam atalhos e removem arquivos e rascunhos',
     await page.getByRole('button', { name: 'Criar versão', exact: true }).click();
     const versionTab = page.getByRole('tab', { name, exact: true });
     await expect(versionTab).toHaveAttribute('aria-selected', 'true');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByRole('status')).toContainText('salva em content/cv');
+    expect(await read(`${name}.md`)).toContain('# Felipe Rangel Ribeiro');
     await versionTab.click({ button: 'middle' });
     await expect(page.getByRole('heading', { name: 'Fechar significa excluir' })).toBeVisible();
     await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
@@ -406,14 +466,7 @@ test('editores visual e de código sincronizam, preservam tabelas e salvam Markd
     await expect(page.getByRole('textbox', { name: 'Editar Markdown formatado', exact: true })).toBeEditable();
     await expect(page.locator('.markdown-rendered table')).toContainText('Avançado');
     // Merely opening the visual editor must not rewrite the source.
-    expect(
-      await page.evaluate(
-        (id) =>
-          JSON.parse(localStorage.getItem('cv-studio:drafts:v1') ?? '[]').find((v: { id: string }) => v.id === id)
-            ?.markdown,
-        name,
-      ),
-    ).toBe(source);
+    await expect.poll(() => read(`${name}.md`)).toBe(source);
     await page.locator('.markdown-rendered h1').click();
     await page.keyboard.press('End');
     await page.keyboard.type(' atualizado');
@@ -434,9 +487,7 @@ test('editores visual e de código sincronizam, preservam tabelas e salvam Markd
     await expect(page.locator('.markdown-rendered h1')).toHaveText('Título editado no código');
     await page.getByRole('button', { name: 'Visualizar PDF', exact: true }).click();
     await expect(page.locator('.resume h1')).toHaveText('Título editado no código');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByRole('status')).toContainText('salva em content/cv');
-    expect(await fs.readFile(`content/cv/${name}.md`, 'utf8')).toContain('# Título editado no código');
+    await expect.poll(() => read(`${name}.md`)).toContain('# Título editado no código');
   } finally {
     await Promise.all(
       ['md', 'layout.json', 'meta.json'].map((ext) => fs.rm(`content/cv/${name}.${ext}`, { force: true })),
@@ -528,9 +579,9 @@ for (const mode of ['local', 'estático'] as const) {
       for (const [selector, property, key] of checks)
         await expect(page.locator(`.markdown-rendered ${selector}`).first()).toHaveCSS(property, rgb(key));
       if (mode === 'local') {
-        await page.getByRole('button', { name: 'Save', exact: true }).click();
-        await expect(page.getByRole('status')).toContainText('salva em content/cv');
-        expect(JSON.parse(await fs.readFile(`content/cv/${name}.layout.json`, 'utf8')).elementColors).toEqual(colors);
+        await expect
+          .poll(async () => JSON.parse((await read(`${name}.layout.json`)) || '{}').elementColors)
+          .toEqual(colors);
       }
       await page.reload();
       await page.getByRole('tab', { name, exact: true }).click();
@@ -642,9 +693,9 @@ for (const mode of ['local', 'estático'] as const) {
         css(choices['table-header-text']),
       );
       if (mode === 'local') {
-        await page.getByRole('button', { name: 'Save', exact: true }).click();
-        await expect(page.getByRole('status')).toContainText('salva em content/cv');
-        expect(JSON.parse(await fs.readFile(`content/cv/${name}.layout.json`, 'utf8')).elementFonts).toEqual(choices);
+        await expect
+          .poll(async () => JSON.parse((await read(`${name}.layout.json`)) || '{}').elementFonts)
+          .toEqual(choices);
       }
       await page.reload();
       await page.getByRole('tab', { name, exact: true }).click();

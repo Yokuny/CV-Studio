@@ -22,6 +22,15 @@ export async function loadVersions(): Promise<{ versions: Version[]; writable: b
     return { versions: bundledVersions(), writable: false };
   }
 }
+/** A failed request; status 409 means the files changed on disk since they were loaded. */
+export class RepositoryError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 export async function saveVersion(version: Version): Promise<string> {
   const { revision, ...resume } = version;
   const response = await fetch('/api/resumes', {
@@ -30,8 +39,41 @@ export async function saveVersion(version: Version): Promise<string> {
     body: JSON.stringify({ resume, expectedRevision: revision }),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error ?? 'Não foi possível salvar.');
+  if (!response.ok) throw new RepositoryError(data.error ?? 'Não foi possível salvar.', response.status);
   return data.revision;
+}
+/**
+ * Merges versions read again from content/cv into the open tabs. Clean tabs follow the
+ * disk, new files open as tabs and removed files close their tab; a tab with unsaved
+ * edits whose file changed meanwhile is kept and reported as a conflict.
+ */
+export function mergeDisk(local: Version[], saved: Record<string, string>, disk: Version[]) {
+  const conflicts: string[] = [];
+  const nextSaved = { ...saved };
+  const versions = local.flatMap((v) => {
+    const stored = disk.find((d) => d.id === v.id);
+    const dirty = saved[v.id] !== snapshot(v);
+    if (stored && (stored.revision === v.revision || snapshot(stored) === snapshot(v))) {
+      nextSaved[v.id] = snapshot(stored);
+      return [{ ...v, revision: stored.revision }];
+    }
+    if (!dirty) {
+      if (!stored) {
+        delete nextSaved[v.id];
+        return v.revision === null ? [v] : [];
+      }
+      nextSaved[v.id] = snapshot(stored);
+      return [stored];
+    }
+    if (stored || v.revision !== null) conflicts.push(v.id);
+    return [v];
+  });
+  for (const d of disk) {
+    if (local.some((v) => v.id === d.id)) continue;
+    versions.push(d);
+    nextSaved[d.id] = snapshot(d);
+  }
+  return { versions, saved: nextSaved, conflicts };
 }
 export async function deleteVersion(version: Version): Promise<void> {
   const response = await fetch('/api/resumes', {

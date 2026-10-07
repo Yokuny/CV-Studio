@@ -9,7 +9,16 @@ import {
   slugify,
   type TextAlignment,
 } from '@/lib/model';
-import { deleteVersion, downloadSources, loadVersions, saveVersion, snapshot, type Version } from '@/lib/repository';
+import {
+  deleteVersion,
+  downloadSources,
+  loadVersions,
+  mergeDisk,
+  RepositoryError,
+  saveVersion,
+  snapshot,
+  type Version,
+} from '@/lib/repository';
 import { notify } from './notice';
 import { type PersistedResumes, resumeStorage } from './persistence';
 
@@ -35,14 +44,24 @@ interface ResumesState extends PersistedResumes {
   deletingId: string | null;
   /** Version awaiting confirmation in the close dialog. */
   closing: Version | null;
+  /** Versions with unsaved edits whose files changed on disk; autosave pauses for them. */
+  conflicts: string[];
   load: () => Promise<void>;
+  /** Reads content/cv again after an external change, keeping unsaved edits. */
+  refresh: () => Promise<void>;
+  /** Discards the local edits of a version in favor of its file. */
+  reloadFromDisk: (id: string) => Promise<void>;
+  /** Writes a version, overwriting its file even after a conflict. */
+  overwriteDisk: (id: string) => Promise<void>;
   select: (id: string) => void;
   update: (changes: VersionPatch) => void;
   updateLayout: (change: (layout: Layout) => Layout) => void;
   alignBlocks: (blocks: BlockRange[], align: TextAlignment) => void;
   save: () => Promise<void>;
-  /** Copies the current version under a new name; returns whether it was created. */
-  create: (name: string) => boolean;
+  /** Writes one version to content/cv; quiet saves only report failures. */
+  saveById: (id: string, quiet?: boolean) => Promise<void>;
+  /** Copies the current version under a new name, writing its files in local mode; returns whether it was created. */
+  create: (name: string) => Promise<boolean>;
   requestClose: (version: Version) => void;
   cancelClose: () => void;
   /** Deletes the version awaiting confirmation; throws on failure. */
@@ -60,6 +79,9 @@ export const selectDirty = (s: ResumesState) => selectIsDirty(s, selectCurrent(s
 export const selectHasDrafts = (s: ResumesState) => s.versions.some((v) => selectIsDirty(s, v));
 
 let loading: Promise<void> | undefined;
+const autosaveDelay = 800;
+const autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const inflight = new Map<string, Promise<void>>();
 
 export const useResumes = create<ResumesState>()(
   persist(
@@ -74,6 +96,7 @@ export const useResumes = create<ResumesState>()(
       saving: false,
       deletingId: null,
       closing: null,
+      conflicts: [],
 
       load: () => {
         loading ??= loadVersions().then(({ versions: disk, writable }) => {
@@ -89,8 +112,59 @@ export const useResumes = create<ResumesState>()(
             saved: Object.fromEntries(disk.map((v) => [v.id, snapshot(v)])),
             ready: true,
           });
+          // Drafts restored from the browser are written as soon as the files are writable.
+          if (writable) for (const v of drafts) scheduleSave(v.id);
         });
         return loading;
+      },
+      refresh: async () => {
+        if (!get().ready || !get().writable) return;
+        await Promise.all(inflight.values());
+        const { versions: disk, writable } = await loadVersions();
+        if (!writable) return;
+        set((s) => {
+          const merged = mergeDisk(s.versions, s.saved, disk);
+          const conflicts = [
+            ...new Set([...s.conflicts.filter((id) => merged.conflicts.includes(id)), ...merged.conflicts]),
+          ];
+          return {
+            versions: merged.versions,
+            saved: merged.saved,
+            conflicts,
+            activeId: merged.versions.some((v) => v.id === s.activeId) ? s.activeId : (merged.versions[0]?.id ?? ''),
+          };
+        });
+      },
+      reloadFromDisk: async (id) => {
+        clearTimeout(autosaveTimers.get(id));
+        const { versions: disk } = await loadVersions();
+        const stored = disk.find((v) => v.id === id);
+        set((s) => {
+          const { [id]: _removed, ...saved } = s.saved;
+          const versions = stored
+            ? s.versions.map((v) => (v.id === id ? stored : v))
+            : s.versions.filter((v) => v.id !== id);
+          return {
+            versions,
+            saved: stored ? { ...saved, [id]: snapshot(stored) } : saved,
+            conflicts: s.conflicts.filter((c) => c !== id),
+            activeId: versions.some((v) => v.id === s.activeId) ? s.activeId : (versions[0]?.id ?? ''),
+          };
+        });
+        notify(
+          stored
+            ? `“${stored.name}” recarregada de content/cv.`
+            : 'O arquivo foi removido do disco; a aba foi fechada.',
+        );
+      },
+      overwriteDisk: async (id) => {
+        const { versions: disk } = await loadVersions();
+        const revision = disk.find((v) => v.id === id)?.revision ?? null;
+        set((s) => ({
+          versions: s.versions.map((v) => (v.id === id ? { ...v, revision } : v)),
+          conflicts: s.conflicts.filter((c) => c !== id),
+        }));
+        await get().saveById(id);
       },
       select: (activeId) => set({ activeId }),
       update: (changes) => {
@@ -108,27 +182,47 @@ export const useResumes = create<ResumesState>()(
             return { ...v, ...patch };
           }),
         }));
+        if (get().writable) scheduleSave(currentId);
       },
       updateLayout: (change) => get().update((v) => ({ layout: change(v.layout) })),
       alignBlocks: (blocks, align) =>
         get().update((v) => ({ layout: alignBlocks(v.layout, v.markdown, blocks, align) })),
       save: async () => {
-        const version = selectCurrent(get());
-        set({ saving: true });
-        try {
-          const revision = await saveVersion(version);
-          set((s) => ({
-            versions: s.versions.map((v) => (v.id === version.id ? { ...v, revision } : v)),
-            saved: { ...s.saved, [version.id]: snapshot(version) },
-          }));
-          notify(`“${version.name}” salva em content/cv. Faça um commit para registrar no Git.`);
-        } catch (error) {
-          notify((error as Error).message);
-        } finally {
-          set({ saving: false });
-        }
+        const { id } = selectCurrent(get());
+        clearTimeout(autosaveTimers.get(id));
+        await get().saveById(id);
       },
-      create: (name) => {
+      saveById: async (id, quiet = false) => {
+        await inflight.get(id);
+        const version = get().versions.find((v) => v.id === id);
+        if (!version || get().conflicts.includes(id) || (quiet && !selectIsDirty(get(), version))) return;
+        const request = (async () => {
+          set({ saving: true });
+          try {
+            const revision = await saveVersion(version);
+            set((s) => ({
+              versions: s.versions.map((v) => (v.id === id ? { ...v, revision } : v)),
+              saved: { ...s.saved, [id]: snapshot({ ...version, revision }) },
+            }));
+            if (!quiet) notify(`“${version.name}” salva em content/cv.`);
+          } catch (error) {
+            if (error instanceof RepositoryError && error.status === 409)
+              set((s) => ({ conflicts: [...new Set([...s.conflicts, id])] }));
+            notify((error as Error).message);
+          }
+        })();
+        inflight.set(id, request);
+        try {
+          await request;
+        } finally {
+          inflight.delete(id);
+          set({ saving: inflight.size > 0 });
+        }
+        // Edits made while the request ran are saved next.
+        const current = get().versions.find((v) => v.id === id);
+        if (current && selectIsDirty(get(), current)) scheduleSave(id);
+      },
+      create: async (name) => {
         const id = slugify(name);
         if (!id) {
           notify('Dê um nome à versão usando letras ou números.');
@@ -138,12 +232,27 @@ export const useResumes = create<ResumesState>()(
           notify('Já existe uma versão com esse nome. Escolha outro.');
           return false;
         }
+        const version: Version = { ...selectCurrent(get()), id, name: name.trim().slice(0, 120), revision: null };
+        if (get().writable) {
+          try {
+            version.revision = await saveVersion(version);
+          } catch (error) {
+            notify((error as Error).message);
+            return false;
+          }
+        }
         set((s) => ({
           hidden: s.hidden.filter((hidden) => hidden !== id),
-          versions: [...s.versions, { ...selectCurrent(s), id, name: name.trim().slice(0, 120), revision: null }],
+          // The file watcher may have opened the new file already.
+          versions: [...s.versions.filter((v) => v.id !== id), version],
+          saved: s.writable ? { ...s.saved, [id]: snapshot(version) } : s.saved,
           activeId: id,
         }));
-        notify('Versão criada como rascunho. Personalize e salve no repositório.');
+        notify(
+          get().writable
+            ? `Versão criada em content/cv/${id}.md. As edições são salvas automaticamente.`
+            : 'Versão criada como rascunho. Baixe os arquivos para incluí-la no Git.',
+        );
         return true;
       },
       requestClose: (closing) => {
@@ -158,8 +267,10 @@ export const useResumes = create<ResumesState>()(
         const { writable } = get();
         // Persisting without the draft first keeps Vite's reload from restoring it.
         set({ deletingId: target.id });
+        clearTimeout(autosaveTimers.get(target.id));
+        await inflight.get(target.id);
         try {
-          if (writable) await deleteVersion(target);
+          if (writable) await deleteVersion(get().versions.find((v) => v.id === target.id) ?? target);
           set((s) => {
             const remaining = s.versions.filter((v) => v.id !== target.id);
             const index = s.versions.findIndex((v) => v.id === target.id);
@@ -167,6 +278,7 @@ export const useResumes = create<ResumesState>()(
             return {
               versions: remaining,
               saved,
+              conflicts: s.conflicts.filter((id) => id !== target.id),
               closing: null,
               activeId:
                 selectCurrent(s).id === target.id
@@ -211,3 +323,14 @@ export const useResumes = create<ResumesState>()(
     },
   ),
 );
+
+function scheduleSave(id: string) {
+  clearTimeout(autosaveTimers.get(id));
+  autosaveTimers.set(
+    id,
+    setTimeout(() => {
+      autosaveTimers.delete(id);
+      void useResumes.getState().saveById(id, true);
+    }, autosaveDelay),
+  );
+}
