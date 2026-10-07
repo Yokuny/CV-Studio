@@ -1,4 +1,12 @@
-export const fonts = ['Arial', 'Georgia', 'Verdana', 'Times New Roman', 'Helvetica'] as const
+export const fonts = [
+  'Arial',
+  'Georgia',
+  'Verdana',
+  'Times New Roman',
+  'Helvetica',
+  'Courier New',
+  'Consolas',
+] as const
 export const textAlignments = ['left', 'center', 'right', 'justify'] as const
 export type TextAlignment = (typeof textAlignments)[number]
 export interface BlockAlignment {
@@ -7,8 +15,146 @@ export interface BlockAlignment {
   align: TextAlignment
   source?: string
 }
+export type FontFamily = (typeof fonts)[number]
+export const elementFontGroups = [
+  {
+    label: 'Títulos',
+    elements: [
+      { key: 'h1', label: 'Título H1' },
+      { key: 'h2', label: 'Título H2' },
+      { key: 'h3', label: 'Título H3' },
+      { key: 'h4', label: 'Título H4' },
+      { key: 'h5', label: 'Título H5' },
+      { key: 'h6', label: 'Título H6' },
+      { key: 'subtitle', label: 'Subtítulo após H1' },
+    ],
+  },
+  {
+    label: 'Texto e listas',
+    elements: [
+      { key: 'paragraph', label: 'Parágrafos' },
+      { key: 'strong', label: 'Negrito' },
+      { key: 'em', label: 'Itálico' },
+      { key: 'del', label: 'Texto riscado' },
+      { key: 'link', label: 'Links' },
+      { key: 'list', label: 'Texto das listas' },
+      { key: 'marker', label: 'Marcadores e números' },
+    ],
+  },
+  {
+    label: 'Tabelas',
+    elements: [
+      { key: 'table-text', label: 'Texto das células' },
+      { key: 'table-header-text', label: 'Texto do cabeçalho' },
+    ],
+  },
+  {
+    label: 'Citações e código',
+    elements: [
+      { key: 'quote', label: 'Citações' },
+      { key: 'code', label: 'Código inline' },
+      { key: 'code-block', label: 'Blocos de código' },
+    ],
+  },
+] as const
+export type ElementFont = (typeof elementFontGroups)[number]['elements'][number]['key']
+export const elementFonts = elementFontGroups.flatMap((group) => [...group.elements])
+export function fontFamilyCss(font: FontFamily) {
+  const fallback = font === 'Courier New' || font === 'Consolas' ? 'monospace' : 'serif'
+  return `"${font}", ${fallback}`
+}
+
+// Optional element colors preserve the inheritance of existing layouts.
+export const elementColorGroups = [
+  {
+    label: 'Títulos',
+    colors: [
+      { key: 'h1', label: 'Título H1', base: 'accentColor' },
+      { key: 'h2', label: 'Título H2', base: 'accentColor' },
+      { key: 'h3', label: 'Título H3', base: 'accentColor' },
+      { key: 'h4', label: 'Título H4', base: 'textColor' },
+      { key: 'h5', label: 'Título H5', base: 'textColor' },
+      { key: 'h6', label: 'Título H6', base: 'textColor' },
+      { key: 'subtitle', label: 'Subtítulo após H1', base: 'accentColor' },
+      { key: 'heading-border', label: 'Linha do H2', base: 'accentColor', opacity: 0.3 },
+    ],
+  },
+  {
+    label: 'Texto e listas',
+    colors: [
+      { key: 'paragraph', label: 'Parágrafos', base: 'textColor' },
+      { key: 'strong', label: 'Negrito', base: 'textColor' },
+      { key: 'em', label: 'Itálico', base: 'textColor' },
+      { key: 'del', label: 'Texto riscado', base: 'textColor' },
+      { key: 'link', label: 'Links', base: 'accentColor' },
+      { key: 'list', label: 'Texto das listas', base: 'textColor' },
+      { key: 'marker', label: 'Marcadores e números', base: 'accentColor' },
+      { key: 'checkbox', label: 'Caixas de tarefas', base: 'accentColor' },
+      { key: 'rule', label: 'Linha horizontal', base: 'accentColor' },
+    ],
+  },
+  {
+    label: 'Tabelas',
+    colors: [
+      { key: 'table-text', label: 'Texto das células', base: 'textColor' },
+      { key: 'table-background', label: 'Fundo das células', base: 'paperColor' },
+      { key: 'table-header-text', label: 'Texto do cabeçalho', base: 'textColor' },
+      {
+        key: 'table-header-background',
+        label: 'Fundo do cabeçalho',
+        base: 'accentColor',
+        opacity: 0.06,
+      },
+      { key: 'table-border', label: 'Linhas da tabela', base: 'textColor', opacity: 0.09 },
+      { key: 'table-stripe', label: 'Fundo das linhas alternadas', base: 'paperColor' },
+    ],
+  },
+  {
+    label: 'Citações e código',
+    colors: [
+      { key: 'quote-text', label: 'Texto da citação', base: 'textColor' },
+      { key: 'quote-background', label: 'Fundo da citação', base: 'paperColor' },
+      { key: 'quote-border', label: 'Borda da citação', base: 'accentColor' },
+      { key: 'code-text', label: 'Texto do código inline', base: 'textColor' },
+      { key: 'code-background', label: 'Fundo do código inline', base: 'paperColor' },
+      { key: 'code-block-text', label: 'Texto do bloco de código', base: 'textColor' },
+      {
+        key: 'code-block-background',
+        label: 'Fundo do bloco de código',
+        base: 'paperColor',
+        fixed: '#f2f2f2',
+      },
+    ],
+  },
+] as const
+export type ElementColor = (typeof elementColorGroups)[number]['colors'][number]['key']
+export const elementColors = elementColorGroups.flatMap((group) => [...group.colors])
+
+export function elementColorValue(layout: Layout, key: ElementColor): string {
+  const override = layout.elementColors?.[key]
+  if (override) return override
+  const token = elementColors.find((color) => color.key === key)
+  if (!token) return layout.textColor
+  if ('fixed' in token) return token.fixed
+  const base = layout[token.base]
+  if (!('opacity' in token)) return base
+  // Show the effective default swatch for translucent borders and backgrounds.
+  return `#${[1, 3, 5]
+    .map((start) =>
+      Math.round(
+        Number.parseInt(base.slice(start, start + 2), 16) * token.opacity +
+          Number.parseInt(layout.paperColor.slice(start, start + 2), 16) * (1 - token.opacity),
+      )
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`
+}
+
 export interface Layout {
-  fontFamily: (typeof fonts)[number]
+  elementColors?: Partial<Record<ElementColor, string>>
+  elementFonts?: Partial<Record<ElementFont, FontFamily>>
+  fontFamily: FontFamily
   textAlign?: (typeof textAlignments)[number]
   blockAlignments?: BlockAlignment[]
   fontSize: number
@@ -52,6 +198,25 @@ export function validLayout(value: unknown): value is Layout {
   if (!value || typeof value !== 'object') return false
   const l = value as Record<string, unknown>
   return (
+    (l.elementColors === undefined ||
+      (l.elementColors !== null &&
+        typeof l.elementColors === 'object' &&
+        !Array.isArray(l.elementColors) &&
+        Object.entries(l.elementColors).every(
+          ([key, value]) =>
+            elementColors.some((color) => color.key === key) &&
+            typeof value === 'string' &&
+            /^#[a-f\d]{6}$/i.test(value),
+        ))) &&
+    (l.elementFonts === undefined ||
+      (l.elementFonts !== null &&
+        typeof l.elementFonts === 'object' &&
+        !Array.isArray(l.elementFonts) &&
+        Object.entries(l.elementFonts).every(
+          ([key, value]) =>
+            elementFonts.some((element) => element.key === key) &&
+            fonts.includes(value as FontFamily),
+        ))) &&
     fonts.includes(l.fontFamily as Layout['fontFamily']) &&
     (l.textAlign === undefined ||
       textAlignments.includes(l.textAlign as (typeof textAlignments)[number])) &&
@@ -145,7 +310,19 @@ export function slugify(name: string) {
 }
 export function layoutCss(layout: Layout) {
   return {
-    '--cv-font-family': `"${layout.fontFamily}", serif`,
+    ...Object.fromEntries(
+      elementColors.flatMap(({ key }) => {
+        const color = layout.elementColors?.[key]
+        return color ? [[`--cv-${key}`, color]] : []
+      }),
+    ),
+    ...Object.fromEntries(
+      elementFonts.flatMap(({ key }) => {
+        const font = layout.elementFonts?.[key]
+        return font ? [[`--cv-${key}-font`, fontFamilyCss(font)]] : []
+      }),
+    ),
+    '--cv-font-family': fontFamilyCss(layout.fontFamily),
     '--cv-text-align': layout.textAlign ?? 'left',
     '--cv-font-size': `${layout.fontSize}pt`,
     '--cv-line-height': layout.lineHeight,

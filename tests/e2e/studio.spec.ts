@@ -2,6 +2,13 @@ import { createHash } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
+import {
+  elementColorGroups,
+  elementFontGroups,
+  type FontFamily,
+  fontFamilyCss,
+  fonts,
+} from '../../src/lib/model'
 
 const id = `e2e-${Date.now()}`
 test.afterAll(async () => {
@@ -33,7 +40,7 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
   await expect(page.locator('.resume h2')).toHaveText('Backend')
   await expect(page.locator('.resume script')).toHaveCount(0)
   await page.getByRole('button', { name: 'Visualizar PDF', exact: true }).click()
-  await page.getByLabel('Família da fonte').selectOption('Georgia')
+  await page.getByLabel('Família da fonte', { exact: true }).selectOption('Georgia')
   await page.getByLabel('Cor de destaque').fill('#334455')
   await expect(page.getByRole('button', { name: 'Justificar texto', exact: true })).toBeDisabled()
   await page.locator('.resume li').evaluate((element) => {
@@ -61,7 +68,7 @@ test('cria versão, edita Markdown e tokens, grava arquivos e detecta conflito',
     previewWidth,
   )
   await page.getByRole('button', { name: 'Abrir menu lateral' }).click()
-  await expect(page.getByLabel('Família da fonte')).toHaveValue('Georgia')
+  await expect(page.getByLabel('Família da fonte', { exact: true })).toHaveValue('Georgia')
   await expect(page.locator('.resume h2')).toHaveText('Backend')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('status')).toContainText('salva em content/cv')
@@ -487,3 +494,272 @@ test('editores visual e de código sincronizam, preservam tabelas e salvam Markd
     )
   }
 })
+
+for (const mode of ['local', 'estático'] as const) {
+  test(`cores de elementos persistem e aparecem no Markdown e na impressão em modo ${mode}`, async ({
+    page,
+  }) => {
+    const name = `${id}-colors-${mode === 'local' ? 'local' : 'static'}`
+    try {
+      await page.goto(mode === 'local' ? '/' : 'http://127.0.0.1:4173')
+      await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
+      await page.getByRole('button', { name: 'Nova Versão', exact: true }).click()
+      await page.getByLabel('Nome da versão').fill(name)
+      await page.getByRole('button', { name: 'Criar versão', exact: true }).click()
+      await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
+      await page
+        .getByLabel('Editar código Markdown')
+        .fill(
+          [
+            '# Título',
+            'Subtítulo',
+            '## Seção',
+            '### H3',
+            '#### H4',
+            '##### H5',
+            '###### H6',
+            'Parágrafo **negrito** *itálico* ~~riscado~~ [link](https://example.com) e `inline`.',
+            '- Item',
+            '- [x] Tarefa',
+            '---',
+            '> Citação',
+            '```js\nconst a = 1\n```',
+            '| Coluna | Valor |\n| --- | --- |\n| A | Um |\n| B | Dois |',
+          ].join('\n\n'),
+        )
+      const checks: [string, string, string][] = [
+        ...[1, 2, 3, 4, 5, 6].map((level): [string, string, string] => [
+          `h${level}`,
+          'color',
+          `h${level}`,
+        ]),
+        ['h1 + p', 'color', 'subtitle'],
+        ['h2', 'border-bottom-color', 'heading-border'],
+        ['p', 'color', 'paragraph'],
+        ['strong', 'color', 'strong'],
+        ['em', 'color', 'em'],
+        ['a', 'color', 'link'],
+        ['li', 'color', 'list'],
+        ['hr', 'border-top-color', 'rule'],
+        ['th', 'color', 'table-header-text'],
+        ['th', 'background-color', 'table-header-background'],
+        ['td', 'color', 'table-text'],
+        ['td', 'background-color', 'table-background'],
+        ['td', 'border-bottom-color', 'table-border'],
+        ['tr:last-child td', 'background-color', 'table-stripe'],
+        ['blockquote', 'color', 'quote-text'],
+        ['blockquote', 'background-color', 'quote-background'],
+        ['blockquote', 'border-left-color', 'quote-border'],
+        ['p code', 'color', 'code-text'],
+        ['p code', 'background-color', 'code-background'],
+        ['pre code', 'color', 'code-block-text'],
+        ['pre', 'background-color', 'code-block-background'],
+      ]
+      const colors: Record<string, string> = {}
+      for (const [index, group] of elementColorGroups.entries()) {
+        await page.locator('.element-colors summary').filter({ hasText: group.label }).click()
+        for (const [offset, { key, label }] of group.colors.entries()) {
+          const color = `#${(0x213040 + index * 0x201000 + offset * 0x010203).toString(16)}`
+          colors[key] = color
+          await page.getByLabel(`Cor de ${label.toLowerCase()}`, { exact: true }).fill(color)
+        }
+      }
+      const rgb = (key: string) => {
+        const color = colors[key]
+        return `rgb(${[1, 3, 5].map((start) => Number.parseInt(color.slice(start, start + 2), 16)).join(', ')})`
+      }
+      // Inline element colors inherit into both renderers; heading-adjacent paragraphs have their own token.
+      checks[checks.findIndex(([selector]) => selector === 'p')] = ['h6 + p', 'color', 'paragraph']
+      await page.getByRole('button', { name: 'Visualizar PDF', exact: true }).click()
+      for (const [selector, property, key] of checks)
+        await expect(page.locator(`.resume ${selector}`).first()).toHaveCSS(property, rgb(key))
+      await expect(page.locator('.resume del')).toHaveCSS('color', rgb('del'))
+      await expect(page.locator('.resume input[type="checkbox"]')).toHaveCSS(
+        'accent-color',
+        rgb('checkbox'),
+      )
+      expect(
+        await page
+          .locator('.resume li')
+          .first()
+          .evaluate((el) => getComputedStyle(el, '::marker').color),
+      ).toBe(rgb('marker'))
+      await page.getByRole('button', { name: 'Visualizar Markdown', exact: true }).click()
+      for (const [selector, property, key] of checks)
+        await expect(page.locator(`.markdown-rendered ${selector}`).first()).toHaveCSS(
+          property,
+          rgb(key),
+        )
+      if (mode === 'local') {
+        await page.getByRole('button', { name: 'Save', exact: true }).click()
+        await expect(page.getByRole('status')).toContainText('salva em content/cv')
+        expect(
+          JSON.parse(await fs.readFile(`content/cv/${name}.layout.json`, 'utf8')).elementColors,
+        ).toEqual(colors)
+      }
+      await page.reload()
+      await page.getByRole('tab', { name, exact: true }).click()
+      await expect(page.locator('.resume h1')).toHaveCSS('color', rgb('h1'))
+      await page.emulateMedia({ media: 'print' })
+      for (const [selector, property, key] of checks)
+        await expect(page.locator(`.resume ${selector}`).first()).toHaveCSS(property, rgb(key))
+      await page.emulateMedia({ media: 'screen' })
+      await page.getByRole('tab', { name: 'Currículo base', exact: true }).click()
+      await expect(page.locator('.resume h1')).toHaveCSS('color', 'rgb(29, 29, 31)')
+      await page.getByRole('tab', { name, exact: true }).click()
+      await page
+        .locator('.element-colors summary')
+        .filter({ hasText: /^Títulos$/ })
+        .click()
+      await page.getByRole('button', { name: 'Restaurar cor de título h1', exact: true }).click()
+      await page.getByLabel('Cor de destaque', { exact: true }).fill('#abcdef')
+      await expect(page.locator('.resume h1')).toHaveCSS('color', 'rgb(171, 205, 239)')
+      await expect(page.locator('.resume h2')).toHaveCSS('color', rgb('h2'))
+      await page.setViewportSize({ width: 390, height: 844 })
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+        .toBeLessThanOrEqual(390)
+    } finally {
+      await Promise.all(
+        ['md', 'layout.json', 'meta.json'].map((ext) =>
+          fs.rm(`content/cv/${name}.${ext}`, { force: true }),
+        ),
+      )
+    }
+  })
+}
+
+for (const mode of ['local', 'estático'] as const) {
+  test(`fontes por uso preservam herança, gravação e impressão em modo ${mode}`, async ({
+    page,
+  }) => {
+    const name = `${id}-fonts-${mode === 'local' ? 'local' : 'static'}`
+    const choices: Record<string, FontFamily> = {}
+    const selectors: [string, string][] = [
+      ...[1, 2, 3, 4, 5, 6].map((level): [string, string] => [`h${level}`, `h${level}`]),
+      ['subtitle', 'h1 + p'],
+      ['paragraph', 'h6 + p'],
+      ['strong', 'strong'],
+      ['em', 'em'],
+      ['del', ':is(del, s)'],
+      ['link', 'a'],
+      ['list', 'li'],
+      ['table-text', 'td'],
+      ['table-header-text', 'th'],
+      ['quote', 'blockquote p'],
+      ['code', 'p code'],
+      ['code-block', 'pre code'],
+    ]
+    const css = (font: FontFamily) =>
+      font.includes(' ') ? fontFamilyCss(font) : fontFamilyCss(font).replaceAll('"', '')
+    try {
+      await page.goto(mode === 'local' ? '/' : 'http://127.0.0.1:4173')
+      await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled()
+      await page.getByRole('button', { name: 'Nova Versão', exact: true }).click()
+      await page.getByLabel('Nome da versão').fill(name)
+      await page.getByRole('button', { name: 'Criar versão', exact: true }).click()
+      await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click()
+      await page
+        .getByLabel('Editar código Markdown')
+        .fill(
+          [
+            '# Título',
+            'Subtítulo',
+            '## H2',
+            '### H3',
+            '#### H4',
+            '##### H5',
+            '###### H6',
+            'Parágrafo **negrito** *itálico* ~~riscado~~ [link](https://example.com) e `inline`.',
+            '- Primeiro parágrafo.\n\n  Segundo parágrafo.',
+            '> Citação',
+            '```js\nconst x = 1\n```',
+            '| Coluna | Valor |\n| --- | --- |\n| A | Um |',
+          ].join('\n\n'),
+        )
+      await page.getByLabel('Família da fonte', { exact: true }).selectOption('Georgia')
+      await expect(page.locator('.resume h1')).toHaveCSS('font-family', 'Georgia, serif')
+      await expect(page.locator('.resume code').last()).not.toHaveCSS(
+        'font-family',
+        'Georgia, serif',
+      )
+      for (const [index, group] of elementFontGroups.entries()) {
+        await page.locator('.element-fonts summary').filter({ hasText: group.label }).click()
+        for (const [offset, { key, label }] of group.elements.entries()) {
+          const font = fonts[(index + offset + 2) % fonts.length]
+          choices[key] = font
+          await page
+            .getByLabel(`Família da fonte de ${label.toLowerCase()}`, { exact: true })
+            .selectOption(font)
+        }
+      }
+      await page.getByRole('button', { name: 'Visualizar PDF', exact: true }).click()
+      for (const [key, selector] of selectors)
+        await expect(page.locator(`.resume ${selector}`).first()).toHaveCSS(
+          'font-family',
+          css(choices[key]),
+        )
+      await expect(page.locator('.resume li p').last()).toHaveCSS('font-family', css(choices.list))
+      expect(
+        await page
+          .locator('.resume li')
+          .first()
+          .evaluate((el) => getComputedStyle(el, '::marker').fontFamily),
+      ).toBe(css(choices.marker))
+      await page.getByRole('button', { name: 'Visualizar Markdown', exact: true }).click()
+      for (const [key, selector] of selectors)
+        await expect(page.locator(`.markdown-rendered ${selector}`).first()).toHaveCSS(
+          'font-family',
+          css(choices[key]),
+        )
+      await expect(page.locator('.markdown-rendered td p').first()).toHaveCSS(
+        'font-family',
+        css(choices['table-text']),
+      )
+      await expect(page.locator('.markdown-rendered th p').first()).toHaveCSS(
+        'font-family',
+        css(choices['table-header-text']),
+      )
+      if (mode === 'local') {
+        await page.getByRole('button', { name: 'Save', exact: true }).click()
+        await expect(page.getByRole('status')).toContainText('salva em content/cv')
+        expect(
+          JSON.parse(await fs.readFile(`content/cv/${name}.layout.json`, 'utf8')).elementFonts,
+        ).toEqual(choices)
+      }
+      await page.reload()
+      await page.getByRole('tab', { name, exact: true }).click()
+      await page.emulateMedia({ media: 'print' })
+      for (const [key, selector] of selectors)
+        await expect(page.locator(`.resume ${selector}`).first()).toHaveCSS(
+          'font-family',
+          css(choices[key]),
+        )
+      await page.emulateMedia({ media: 'screen' })
+      await page.getByRole('tab', { name: 'Currículo base', exact: true }).click()
+      await expect(page.locator('.resume h1')).toHaveCSS('font-family', 'Arial, serif')
+      await page.getByRole('tab', { name, exact: true }).click()
+      await page
+        .locator('.element-fonts summary')
+        .filter({ hasText: /^Títulos$/ })
+        .click()
+      await page.getByLabel('Família da fonte de título h1', { exact: true }).selectOption('')
+      await page.getByLabel('Família da fonte', { exact: true }).selectOption('Helvetica')
+      await expect(page.locator('.resume h1')).toHaveCSS('font-family', 'Helvetica, serif')
+      await expect(page.locator('.resume h2')).toHaveCSS('font-family', css(choices.h2))
+      await page.getByRole('button', { name: 'Restaurar design padrão', exact: true }).click()
+      await expect(page.locator('.resume h2')).toHaveCSS('font-family', 'Arial, serif')
+      await expect(page.locator('.resume code').last()).not.toHaveCSS('font-family', 'Arial, serif')
+      await page.setViewportSize({ width: 390, height: 844 })
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+        .toBeLessThanOrEqual(390)
+    } finally {
+      await Promise.all(
+        ['md', 'layout.json', 'meta.json'].map((ext) =>
+          fs.rm(`content/cv/${name}.${ext}`, { force: true }),
+        ),
+      )
+    }
+  })
+}

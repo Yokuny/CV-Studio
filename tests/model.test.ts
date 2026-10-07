@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { revision } from '../server/resumes'
 import {
   defaultLayout,
+  elementColors,
+  elementColorValue,
+  elementFonts,
+  fontFamilyCss,
+  fonts,
   layoutCss,
   remapBlockAlignments,
   slugify,
@@ -29,6 +34,53 @@ describe('arquivos de currículo', () => {
     expect(validLayout({ ...defaultLayout, fontSize: 2 })).toBe(false)
     expect(validLayout({ ...defaultLayout, margin: Infinity })).toBe(false)
     expect(validLayout({ ...defaultLayout, textColor: 'red;display:none' })).toBe(false)
+  })
+  it('valida cores por elemento sem alterar a herança de layouts antigos', () => {
+    expect(layoutCss(defaultLayout)).not.toHaveProperty('--cv-h1')
+    for (const { key } of elementColors) {
+      const layout = { ...defaultLayout, elementColors: { [key]: '#123abc' } }
+      expect(validLayout(layout)).toBe(true)
+      expect(layoutCss(layout)).toHaveProperty(`--cv-${key}`, '#123abc')
+      expect(elementColorValue(layout, key)).toBe('#123abc')
+      expect(revision({ ...resume, layout })).not.toBe(revision(resume))
+      expect(validLayout({ ...defaultLayout, elementColors: { [key]: 'red;display:none' } })).toBe(
+        false,
+      )
+    }
+    for (const elementColors of [null, [], '#abcdef', { unknown: '#abcdef' }, { h1: null }])
+      expect(validLayout({ ...defaultLayout, elementColors })).toBe(false)
+    expect(elementColorValue({ ...defaultLayout, accentColor: '#ff0000' }, 'h1')).toBe('#ff0000')
+    expect(elementColorValue(defaultLayout, 'code-block-background')).toBe('#f2f2f2')
+    expect(
+      elementColorValue({ ...defaultLayout, accentColor: '#000000' }, 'table-header-background'),
+    ).toBe('#f0f0f0')
+  })
+  it('aceita fontes por elemento e layouts antigos, rejeitando famílias e chaves inválidas', () => {
+    expect(validLayout(defaultLayout)).toBe(true)
+    expect(layoutCss(defaultLayout)).not.toHaveProperty('--cv-h1-font')
+    for (const { key } of elementFonts) {
+      for (const font of fonts) {
+        const layout = { ...defaultLayout, elementFonts: { [key]: font } }
+        expect(validLayout(layout)).toBe(true)
+        expect(layoutCss(layout)).toHaveProperty(`--cv-${key}-font`, fontFamilyCss(font))
+      }
+    }
+    for (const elementFonts of [
+      null,
+      [],
+      'Arial',
+      { unknown: 'Arial' },
+      { h1: null },
+      { h1: 'Arial;display:none' },
+      { h1: 'Unknown' },
+    ])
+      expect(validLayout({ ...defaultLayout, elementFonts })).toBe(false)
+    expect(revision(resume)).not.toBe(
+      revision({ ...resume, layout: { ...defaultLayout, elementFonts: { h1: 'Georgia' } } }),
+    )
+    expect(layoutCss({ ...defaultLayout, fontFamily: 'Consolas' })['--cv-font-family']).toBe(
+      '"Consolas", monospace',
+    )
   })
   it('normaliza nomes e detecta alterações de conteúdo, layout e nome', () => {
     expect(slugify('Backend Sênior / São Paulo')).toBe('backend-senior-sao-paulo')

@@ -54,6 +54,12 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   type BlockAlignment,
   defaultLayout,
+  type ElementColor,
+  type ElementFont,
+  elementColorGroups,
+  elementColorValue,
+  elementFontGroups,
+  type FontFamily,
   fonts,
   type Layout,
   layoutCss,
@@ -372,6 +378,26 @@ export default function App() {
         ].sort((a, b) => a.start - b.start),
       },
     }))
+  }
+  function setElementFont(key: ElementFont, value: FontFamily | '') {
+    update((version) => {
+      const overrides = { ...version.layout.elementFonts }
+      if (value) overrides[key] = value
+      else delete overrides[key]
+      const { elementFonts: _fonts, ...layout } = version.layout
+      return {
+        layout: Object.keys(overrides).length ? { ...layout, elementFonts: overrides } : layout,
+      }
+    })
+  }
+  function setElementColor(key: ElementColor, value?: string) {
+    update((version) => {
+      const colors = { ...version.layout.elementColors }
+      if (value) colors[key] = value
+      else delete colors[key]
+      const { elementColors: _colors, ...layout } = version.layout
+      return { layout: Object.keys(colors).length ? { ...layout, elementColors: colors } : layout }
+    })
   }
   function setToken<K extends keyof Layout>(key: K, value: Layout[K]) {
     update((v) => ({ layout: { ...v.layout, [key]: value } }))
@@ -696,6 +722,42 @@ export default function App() {
                 </select>
                 <ChevronDown size={14} />
               </div>
+              <p className="small-note">
+                Escolha fontes por tipo de elemento. A opção padrão mantém a fonte herdada; código
+                usa uma fonte monoespaçada.
+              </p>
+              {elementFontGroups.map((group) => (
+                <details className="element-fonts" key={group.label}>
+                  <summary>{group.label}</summary>
+                  {group.elements.map(({ key, label }) => (
+                    <div className="font-control" key={key}>
+                      <Label htmlFor={`font-${key}`}>{label}</Label>
+                      <div className="select-wrap">
+                        <select
+                          id={`font-${key}`}
+                          aria-label={`Família da fonte de ${label.toLowerCase()}`}
+                          value={current.layout.elementFonts?.[key] ?? ''}
+                          onChange={(event) =>
+                            setElementFont(key, event.target.value as FontFamily | '')
+                          }
+                        >
+                          <option value="">
+                            {key === 'code' || key === 'code-block'
+                              ? 'Padrão (monoespaçada)'
+                              : 'Padrão (herdar fonte)'}
+                          </option>
+                          {fonts.map((font) => (
+                            <option key={font} value={font}>
+                              {font}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} />
+                      </div>
+                    </div>
+                  ))}
+                </details>
+              ))}
               <TokenControl
                 name="Tamanho do texto"
                 token="fontSize"
@@ -768,6 +830,43 @@ export default function App() {
                     />
                   </div>
                 </div>
+              ))}
+              <p className="small-note">
+                Personalize cada elemento abaixo. Use ↺ para voltar à cor padrão.
+              </p>
+              {elementColorGroups.map((group) => (
+                <details className="element-colors" key={group.label}>
+                  <summary>{group.label}</summary>
+                  {group.colors.map(({ key, label }) => {
+                    const value = elementColorValue(current.layout, key)
+                    const custom = Boolean(current.layout.elementColors?.[key])
+                    return (
+                      <div className="color-control" key={key}>
+                        <Label htmlFor={`color-${key}`}>{label}</Label>
+                        <div>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={!custom}
+                            aria-label={`Restaurar cor de ${label.toLowerCase()}`}
+                            title={custom ? 'Restaurar cor padrão' : 'Usando cor padrão'}
+                            onClick={() => setElementColor(key)}
+                          >
+                            ↺
+                          </Button>
+                          <input
+                            id={`color-${key}`}
+                            type="color"
+                            value={value}
+                            title={value.toUpperCase()}
+                            aria-label={`Cor de ${label.toLowerCase()}`}
+                            onChange={(event) => setElementColor(key, event.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </details>
               ))}
             </fieldset>
             <details className="token-details">
