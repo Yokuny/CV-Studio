@@ -171,18 +171,26 @@ button:active:not(:disabled) {
 }
 /* Version tabs stay beneath the action header and scroll on narrow screens. */
 .version-bar {
+  display: flex;
+  align-items: stretch;
   position: sticky;
   top: var(--action-header-height, 68px);
   z-index: 19;
   background: #fafafa;
   border-bottom: 1px solid #dedee3;
 }
+.version-bar > .sidebar-toggle {
+  align-self: center;
+  margin-left: 16px;
+}
 .version-tabs {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: stretch;
   overflow-x: auto;
   scrollbar-width: thin;
-  padding: 6px 16px 0;
+  padding: 6px 16px 0 4px;
   gap: 4px;
 }
 .version-tab {

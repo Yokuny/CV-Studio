@@ -480,18 +480,6 @@ export default function App() {
       <style>{`@page { size: A4; margin: ${current.layout.margin}mm; }`}</style>
       <header ref={headerRef} className="app-header no-print">
         <div className="header-identity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="sidebar-toggle"
-            aria-label={sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
-            title={sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
-            aria-expanded={sidebarOpen}
-            aria-controls="editor-sidebar"
-            onClick={() => setSidebarOpen((open) => !open)}
-          >
-            {sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
-          </Button>
           <a href="/" className="brand" aria-label="CV Studio início">
             <span className="brand-icon">
               <FileText size={21} />
@@ -603,6 +591,18 @@ export default function App() {
       </header>
 
       <div ref={tabsRef} className="version-bar no-print">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="sidebar-toggle"
+          aria-label={sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
+          title={sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'}
+          aria-expanded={sidebarOpen}
+          aria-controls="editor-sidebar"
+          onClick={() => setSidebarOpen((open) => !open)}
+        >
+          {sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
+        </Button>
         <div className="version-tabs" role="tablist" aria-label="Versões do currículo">
           {versions.map((v, index) => (
             <div key={v.id} className={`version-tab ${current.id === v.id ? 'active' : ''}`}>
