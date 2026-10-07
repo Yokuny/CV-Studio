@@ -335,3 +335,41 @@ export function layoutCss(layout: Layout) {
     '--cv-paper': layout.paperColor,
   }
 }
+export function findBlockAlignment(
+  layout: Layout,
+  markdown: string,
+  start: number | undefined,
+  end: number | undefined,
+) {
+  return layout.blockAlignments?.find(
+    (block) =>
+      block.start === start &&
+      block.end === end &&
+      (block.source === undefined || block.source === markdown.slice(block.start, block.end)),
+  )
+}
+export function alignBlocks(
+  layout: Layout,
+  markdown: string,
+  blocks: Pick<BlockAlignment, 'start' | 'end'>[],
+  align: TextAlignment,
+): Layout {
+  return {
+    ...layout,
+    blockAlignments: [
+      ...(layout.blockAlignments ?? []).filter(
+        (block) => !blocks.some((selected) => selected.start === block.start),
+      ),
+      ...blocks.map((block) => ({
+        ...block,
+        align,
+        source: markdown.slice(block.start, block.end),
+      })),
+    ].sort((a, b) => a.start - b.start),
+  }
+}
+export function layoutCssDeclarations(layout: Layout, indent = '') {
+  return Object.entries(layoutCss(layout))
+    .map(([key, value]) => `${indent}${key}: ${value};`)
+    .join('\n')
+}

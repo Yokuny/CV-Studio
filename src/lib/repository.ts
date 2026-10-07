@@ -48,3 +48,12 @@ export function download(filename: string, text: string, type: string) {
   link.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+export function downloadSources(version: Version) {
+  download(`${version.id}.md`, version.markdown, 'text/markdown;charset=utf-8')
+  download(`${version.id}.layout.json`, JSON.stringify(version.layout, null, 2), 'application/json')
+  download(
+    `${version.id}.meta.json`,
+    JSON.stringify({ name: version.name }, null, 2),
+    'application/json',
+  )
+}
