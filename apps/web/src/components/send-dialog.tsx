@@ -1,7 +1,7 @@
 import type { SentEmail } from '@cv-studio/core/jobs';
 import { jobTitle } from '@cv-studio/core/jobs';
 import { mailConnected } from '@cv-studio/core/mail';
-import { LoaderCircle, MessageSquareText, Paperclip, Send } from 'lucide-react';
+import { LoaderCircle, MessageSquareText, Paperclip, RotateCw, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { formatDate } from '@/lib/date';
 import { type EmailPreview, useJobs } from '@/store/jobs';
 import { useResumes } from '@/store/resumes';
 import { useUi } from '@/store/ui';
@@ -87,7 +88,7 @@ export function SendDialog() {
             ) : (
               history.slice(0, 5).map((attempt) => (
                 <p key={attempt.id} className={attempt.error ? 'error' : undefined}>
-                  {new Date(attempt.sentAt).toLocaleString('pt-BR')} · {attempt.to} ·{' '}
+                  {formatDate(attempt.sentAt)} · {attempt.to} ·{' '}
                   {attempt.messageId ? `aceito pelo servidor (${attempt.messageId})` : `falhou: ${attempt.error}`}
                 </p>
               ))
@@ -120,7 +121,7 @@ export function SendDialog() {
               setSending(false);
             }}
           >
-            {sending ? <LoaderCircle className="animate-spin" /> : <Send />}
+            {sending ? <LoaderCircle className="animate-spin" /> : delivered.length ? <RotateCw /> : <Send />}
             {sending ? 'Gerando PDF e enviando…' : delivered.length ? 'Reenviar email' : 'Enviar email'}
           </Button>
         </DialogFooter>

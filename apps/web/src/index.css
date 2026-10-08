@@ -989,6 +989,10 @@ body.is-scrubbing * {
   right: 0;
   background: #fff;
 }
+.jobs-panel tr[data-current-resume="true"],
+.jobs-panel tr[data-current-resume="true"] .job-actions {
+  background: #eff6ff;
+}
 .job-history {
   display: grid;
   gap: 4px;

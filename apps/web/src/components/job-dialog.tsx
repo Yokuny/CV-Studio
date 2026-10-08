@@ -9,6 +9,7 @@ import {
 import { pitchVariables } from '@cv-studio/core/pitch';
 import { Save, Trash2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
+import { DateInput } from '@/components/date-input';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDate } from '@/lib/date';
 import { useJobs } from '@/store/jobs';
 import { selectCurrent, useResumes } from '@/store/resumes';
 
@@ -49,7 +51,7 @@ function EmailHistory({ jobId }: { jobId: number }) {
           <li key={email.id} title={email.error ?? email.body}>
             <span className={email.error ? 'text-destructive' : undefined}>{email.error ? 'Falhou' : 'Enviado'}</span>
             {' · '}
-            {new Date(email.sentAt).toLocaleString('pt-BR')} · {email.to} · {email.attachment}
+            {formatDate(email.sentAt)} · {email.to} · {email.attachment}
             {email.error && ` — ${email.error}`}
           </li>
         ))}
@@ -87,7 +89,7 @@ export function JobDialog() {
 
   return (
     <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{editing === 'new' ? 'Nova vaga' : 'Editar vaga'}</DialogTitle>
           <DialogDescription>
@@ -127,7 +129,13 @@ export function JobDialog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {versionMissing && <SelectItem value={job.resumeId}>{job.resumeId} (removida)</SelectItem>}
+                {versionMissing && (
+                  <SelectItem value={job.resumeId}>
+                    <span className="line-through decoration-red-500 decoration-1" title="Currículo excluído">
+                      {job.resumeId}
+                    </span>
+                  </SelectItem>
+                )}
                 {versions.map((v) => (
                   <SelectItem key={v.id} value={v.id}>
                     {v.name}
@@ -155,12 +163,7 @@ export function JobDialog() {
             <span className="small-note">Variáveis: {pitchVariables.map((v) => `{{${v.key}}}`).join(' ')}</span>
           </Field>
           <Field id="job-appliedAt" label="Data da candidatura">
-            <Input
-              id="job-appliedAt"
-              type="date"
-              value={job.appliedAt ?? ''}
-              onChange={(e) => set('appliedAt', e.target.value || null)}
-            />
+            <DateInput id="job-appliedAt" value={job.appliedAt} onChange={(value) => set('appliedAt', value)} />
           </Field>
           <Field id="job-notes" label="Notas" wide>
             <Textarea {...text('notes')} rows={3} maxLength={10000} />
