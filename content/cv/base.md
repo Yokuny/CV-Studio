@@ -86,7 +86,7 @@ ERP e SaaS para gestão de marketplaces - plataforma integradora oficial de Shop
 - **FullCycle — DevOps, Cloud e IA** · 2025
 - **Driven Education — Desenvolvimento Web Full Stack** · 2022 – 2023
 - **Udemy — NodeJs, TDD, DDD, Clean Architecture e SOLID** · 2022
-- **UFES — Engenharia de Produção** · 2019 – 2024
+- **UFES — Engenharia de Produção** · 2019 – 2024 · concluído
 
 ## Informações adicionais
 

@@ -13,7 +13,7 @@ O projeto roda localmente e **você é a IA dele**: a interface não chama model
 - Não invente experiência, cargos, empresas, datas, formação, certificados, métricas, tecnologias ou links. Só acrescente números fornecidos pelo candidato. O fato de a vaga mencionar uma tecnologia não comprova domínio.
 - Pontos a preservar até o candidato esclarecer:
   - "mais de 5 anos": as experiências listadas começam em 2022. Preserve a frase e sinalize a diferença, sem corrigir.
-  - UFES — Engenharia de Produção, 2019–2024: não há declaração de conclusão. Não infira diploma.
+  - UFES — Engenharia de Produção, 2019–2024: concluída (confirmado pelo candidato em 2026-10-08). Não acrescente título, nota ou honrarias que ele não informou.
   - Métrica 6,4 → 41,8 pedidos/min com ganho de 550%: veio do PDF. Qualquer arredondamento deve ser explicado.
   - Datas simultâneas (GESEC e Bykonz "Presente") podem ser atuações paralelas. Não altere sem confirmação.
   - Driven Education é formação com projetos, não vínculo empregatício. Não apresente como emprego.
