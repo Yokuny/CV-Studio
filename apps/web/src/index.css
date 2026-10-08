@@ -984,6 +984,20 @@ body.is-scrubbing * {
 .job-status {
   min-width: 128px;
 }
+.jobs-panel .job-actions {
+  position: sticky;
+  right: 0;
+  background: #fff;
+}
+.job-history {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: #515154;
+}
+.job-history .error {
+  color: #b42318;
+}
 .job-form {
   display: grid;
   grid-template-columns: 1fr 1fr;

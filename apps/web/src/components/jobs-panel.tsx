@@ -37,7 +37,7 @@ function JobRow({ job }: { job: Job }) {
   const setSendingId = useJobs((s) => s.setSendingId);
   return (
     <TableRow>
-      <TableCell>
+      <TableCell className="whitespace-normal">
         <div className="job-title">
           {job.role}
           {job.jobUrl && (
@@ -51,11 +51,11 @@ function JobRow({ job }: { job: Job }) {
           {job.source && ` · ${job.source}`}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="whitespace-normal">
         <div>{job.recruiterName || '—'}</div>
         <div className="job-sub">{job.recruiterEmail || 'sem email'}</div>
       </TableCell>
-      <TableCell>
+      <TableCell className="whitespace-normal">
         {versionName ?? (
           <span className="job-sub" title="Esta versão não existe mais em content/cv">
             {job.resumeId} (removida)
@@ -66,7 +66,8 @@ function JobRow({ job }: { job: Job }) {
         <StatusSelect job={job} />
       </TableCell>
       <TableCell className="tabular-nums">{formatDate(job.appliedAt)}</TableCell>
-      <TableCell className="text-right whitespace-nowrap">
+      {/* Sticky, so long rows never push the send button out of view. */}
+      <TableCell className="job-actions text-right whitespace-nowrap">
         <IconButton label="Editar vaga" onClick={() => setEditing(job)}>
           <Pencil />
         </IconButton>
@@ -150,7 +151,7 @@ export function JobsPanel() {
               <TableHead>Currículo</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Candidatura</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="job-actions text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

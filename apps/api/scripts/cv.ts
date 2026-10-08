@@ -111,6 +111,17 @@ async function jobCommand(sub: string | undefined, positionals: string[], values
     console.log(`Anexo:   ${email.attachment} (${printed.pages} página(s)) — prévia em ${printed.file}`);
     console.log(`Pitch:   ${email.usesBasePitch ? 'base (base.pitch.md)' : `content/cv/${j.resumeId}.pitch.md`}`);
     console.log(`----- corpo do email -----\n${email.body.trimEnd()}\n--------------------------`);
+    const history = db.listEmails(j.id);
+    console.log(
+      history.length
+        ? `Envios anteriores:\n${history
+            .map(
+              (e) =>
+                `  - ${e.sentAt} → ${e.to}: ${e.messageId ? `aceito pelo servidor (${e.messageId})` : `falhou (${e.error})`}`,
+            )
+            .join('\n')}`
+        : 'Envios anteriores: nenhum.',
+    );
     if (problems.length) console.log(`Pendências:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
     return problems;
   };
@@ -159,7 +170,9 @@ async function jobCommand(sub: string | undefined, positionals: string[], values
       if (!mailConnected(await mail.view())) problems.push('Conecte uma conta de email na aba Vagas.');
       if (problems.length) throw new Error(`Envio bloqueado: ${problems.join(' ')}`);
       const { job: sent, messageId } = await sendApplication(deps, j);
-      console.log(`Email enviado para ${sent.recruiterEmail} (${messageId}). ${describe(sent)}`);
+      console.log(
+        `Email aceito pelo servidor SMTP para ${sent.recruiterEmail} (${messageId}); confira a pasta Enviados da conta. ${describe(sent)}`,
+      );
       return 0;
     }
     console.log(usage);

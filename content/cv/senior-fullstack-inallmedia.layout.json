@@ -1,0 +1,12 @@
+{
+  "fontFamily": "Arial",
+  "fontSize": 10,
+  "lineHeight": 1.45,
+  "sectionGap": 10,
+  "paragraphGap": 2,
+  "margin": 14,
+  "headingSize": 24,
+  "accentColor": "#1d1d1f",
+  "textColor": "#333336",
+  "paperColor": "#ffffff"
+}

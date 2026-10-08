@@ -1,3 +1,4 @@
+import type { SentEmail } from '@cv-studio/core/jobs';
 import { jobTitle } from '@cv-studio/core/jobs';
 import { mailConnected } from '@cv-studio/core/mail';
 import { LoaderCircle, MessageSquareText, Paperclip, Send } from 'lucide-react';
@@ -20,17 +21,21 @@ export function SendDialog() {
   const sendingId = useJobs((s) => s.sendingId);
   const job = useJobs((s) => s.jobs.find((j) => j.id === s.sendingId));
   const account = useJobs((s) => s.account);
-  const { setSendingId, preview, send, setAccountOpen } = useJobs.getState();
+  const { setSendingId, preview, send, setAccountOpen, emails } = useJobs.getState();
   const [email, setEmail] = useState<EmailPreview | null>(null);
+  const [history, setHistory] = useState<SentEmail[]>([]);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     setEmail(null);
     setError('');
+    setHistory([]);
     if (sendingId === null) return;
     preview(sendingId).then(setEmail, (e: Error) => setError(e.message));
-  }, [sendingId, preview]);
+    emails(sendingId).then(setHistory, () => setHistory([]));
+  }, [sendingId, preview, emails]);
+  const delivered = history.filter((attempt) => attempt.messageId);
 
   const editPitch = () => {
     if (!job) return;
@@ -75,6 +80,20 @@ export function SendDialog() {
             )}
           </div>
         )}
+        {email && (
+          <section className="job-history" aria-label="Histórico de envios">
+            {history.length === 0 ? (
+              <p>Nenhum envio registrado para esta vaga.</p>
+            ) : (
+              history.slice(0, 5).map((attempt) => (
+                <p key={attempt.id} className={attempt.error ? 'error' : undefined}>
+                  {new Date(attempt.sentAt).toLocaleString('pt-BR')} · {attempt.to} ·{' '}
+                  {attempt.messageId ? `aceito pelo servidor (${attempt.messageId})` : `falhou: ${attempt.error}`}
+                </p>
+              ))
+            )}
+          </section>
+        )}
         {email && problems.length > 0 && (
           <ul className="email-problems" role="alert">
             {problems.map((problem) => (
@@ -96,12 +115,13 @@ export function SendDialog() {
             onClick={async () => {
               if (sendingId === null) return;
               setSending(true);
-              await send(sendingId);
+              // On failure the dialog stays open; the attempt and its error join the history.
+              if (!(await send(sendingId))) setHistory(await emails(sendingId).catch(() => history));
               setSending(false);
             }}
           >
             {sending ? <LoaderCircle className="animate-spin" /> : <Send />}
-            {sending ? 'Gerando PDF e enviando…' : 'Enviar email'}
+            {sending ? 'Gerando PDF e enviando…' : delivered.length ? 'Reenviar email' : 'Enviar email'}
           </Button>
         </DialogFooter>
       </DialogContent>

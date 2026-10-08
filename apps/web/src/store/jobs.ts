@@ -152,9 +152,14 @@ export const useJobs = create<JobsState>()((set, get) => ({
   },
   send: async (id) => {
     try {
-      const { job } = await api<{ job: Job }>(`jobs/${id}/send`, { method: 'POST', body: {} });
+      const { job, messageId } = await api<{ job: Job; messageId: string }>(`jobs/${id}/send`, {
+        method: 'POST',
+        body: {},
+      });
       set((s) => ({ jobs: replace(s.jobs, job), sendingId: null }));
-      notify(`Email enviado para ${job.recruiterEmail}.`);
+      notify(
+        `Email aceito pelo servidor para ${job.recruiterEmail} (${messageId}). Confira a pasta Enviados da sua conta.`,
+      );
       return true;
     } catch (error) {
       notify((error as Error).message);
