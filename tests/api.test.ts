@@ -37,7 +37,6 @@ beforeEach(async () => {
   const api = createApi({
     contentRoot,
     dataRoot: path.join(dir, 'data'),
-    webOrigin: 'http://127.0.0.1:1',
     renderPdf: async () => {
       if (pdfError) throw pdfError;
       return Buffer.from('%PDF-1.4');

@@ -1,0 +1,225 @@
+/*
+ * Resume styles shared by the studio UI (imported by apps/web/src/index.css) and by the PDF
+ * renderer of the API (apps/api/src/resume-html.ts), so the preview, "Exportar PDF" and the PDF
+ * attached to emails use the same rules. The tokens come from <slug>.layout.json via layoutCss.
+ */
+:is(.resume, .markdown-rendered) {
+  width: 794px;
+  min-height: 1122px;
+  padding: var(--cv-margin);
+  background: var(--cv-paper);
+  color: var(--cv-text);
+  font-family: var(--cv-font-family);
+  font-size: var(--cv-font-size);
+  line-height: var(--cv-line-height);
+  transform-origin: top left;
+  overflow-wrap: anywhere;
+}
+:is(.resume, .markdown-rendered) h1 {
+  font-family: var(--cv-h1-font, inherit);
+  color: var(--cv-h1, var(--cv-accent));
+  font-size: var(--cv-heading-size);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+:is(.resume, .markdown-rendered) p {
+  font-family: var(--cv-paragraph-font, inherit);
+  color: var(--cv-paragraph, inherit);
+  margin: 0 0 var(--cv-paragraph-gap);
+  text-align: var(--cv-text-align, left);
+}
+:is(.resume, .markdown-rendered) h1 + p {
+  font-family: var(--cv-subtitle-font, var(--cv-paragraph-font, inherit));
+  font-size: 1.05em;
+  color: var(--cv-subtitle, var(--cv-accent));
+}
+:is(.resume, .markdown-rendered) h2 {
+  font-family: var(--cv-h2-font, inherit);
+  color: var(--cv-h2, var(--cv-accent));
+  font-weight: 700;
+  font-size: 1.02em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--cv-heading-border, color-mix(in srgb, var(--cv-accent), transparent 70%));
+  margin: var(--cv-section-gap) 0 9px;
+}
+:is(.resume, .markdown-rendered) h3 {
+  font-family: var(--cv-h3-font, inherit);
+  color: var(--cv-h3, var(--cv-accent));
+  font-weight: 700;
+  font-size: 1.05em;
+  margin: 14px 0 3px;
+}
+:is(.resume, .markdown-rendered) h4,
+:is(.resume, .markdown-rendered) h5,
+:is(.resume, .markdown-rendered) h6 {
+  font-family: var(--cv-h6-font, inherit);
+  font-weight: 700;
+  margin: 10px 0 4px;
+}
+:is(.resume, .markdown-rendered) ul {
+  list-style: disc;
+  padding-left: 16px;
+  margin: 4px 0 9px;
+}
+:is(.resume, .markdown-rendered) ol {
+  list-style: decimal;
+  padding-left: 18px;
+  margin: 4px 0 9px;
+}
+:is(.resume, .markdown-rendered) li {
+  font-family: var(--cv-list-font, var(--cv-paragraph-font, inherit));
+  margin: 0 0 var(--cv-paragraph-gap);
+  padding-left: 2px;
+  text-align: var(--cv-text-align, left);
+}
+:is(.resume, .markdown-rendered) li::marker {
+  font-family: var(--cv-marker-font, inherit);
+  color: var(--cv-marker, var(--cv-accent));
+}
+:is(.resume, .markdown-rendered) li p {
+  margin-bottom: 0;
+}
+:is(.resume, .markdown-rendered) a {
+  font-family: var(--cv-link-font, inherit);
+  color: var(--cv-link, var(--cv-accent));
+  text-decoration: none;
+}
+:is(.resume, .markdown-rendered) table {
+  font-family: var(--cv-table-text-font, var(--cv-paragraph-font, inherit));
+  width: 100%;
+  border-collapse: collapse;
+  margin: 7px 0 10px;
+}
+:is(.resume, .markdown-rendered) th {
+  font-family: var(--cv-table-header-text-font, inherit);
+  text-align: left;
+  font-weight: 700;
+  color: var(--cv-table-header-text, var(--cv-table-text, inherit));
+  background: var(--cv-table-header-background, color-mix(in srgb, var(--cv-accent), transparent 94%));
+}
+:is(.resume, .markdown-rendered) td,
+:is(.resume, .markdown-rendered) th {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--cv-table-border, color-mix(in srgb, var(--cv-text), transparent 91%));
+  vertical-align: top;
+}
+:is(.resume, .markdown-rendered) td:first-child {
+  font-weight: 600;
+  width: 23%;
+}
+:is(.resume, .markdown-rendered) pre {
+  font-family: var(--cv-code-block-font, var(--font-mono, monospace));
+  white-space: pre-wrap;
+  color: var(--cv-code-block-text, inherit);
+  background: var(--cv-code-block-background, #f2f2f2);
+  padding: 8px;
+}
+:is(.resume, .markdown-rendered) code {
+  font-family: var(--cv-code-font, var(--font-mono, monospace));
+  font-size: 0.9em;
+}
+:is(.resume, .markdown-rendered) blockquote {
+  font-family: var(--cv-quote-font, var(--cv-paragraph-font, inherit));
+  color: var(--cv-quote-text, inherit);
+  background: var(--cv-quote-background, transparent);
+  border-left: 2px solid var(--cv-quote-border, var(--cv-accent));
+  padding-left: 12px;
+}
+:is(.resume, .markdown-rendered) img {
+  max-width: 100%;
+  height: auto;
+}
+:is(.resume, .markdown-rendered) hr {
+  border-top: 1px solid var(--cv-rule, var(--cv-accent));
+  margin: 12px 0;
+}
+:is(.resume, .markdown-rendered) strong {
+  font-family: var(--cv-strong-font, inherit);
+  font-weight: 700;
+}
+/* Inherit contextual text colors until an explicit override is selected. */
+:is(.resume, .markdown-rendered) h4 {
+  font-family: var(--cv-h4-font, inherit);
+  color: var(--cv-h4, inherit);
+}
+:is(.resume, .markdown-rendered) h5 {
+  font-family: var(--cv-h5-font, inherit);
+  color: var(--cv-h5, inherit);
+}
+:is(.resume, .markdown-rendered) h6 {
+  color: var(--cv-h6, inherit);
+}
+:is(.resume, .markdown-rendered) strong {
+  color: var(--cv-strong, inherit);
+}
+:is(.resume, .markdown-rendered) em {
+  font-family: var(--cv-em-font, inherit);
+  color: var(--cv-em, inherit);
+}
+:is(.resume, .markdown-rendered) del,
+:is(.resume, .markdown-rendered) s {
+  font-family: var(--cv-del-font, inherit);
+  color: var(--cv-del, inherit);
+}
+:is(.resume, .markdown-rendered) li {
+  color: var(--cv-list, inherit);
+}
+:is(.resume, .markdown-rendered) input[type="checkbox"] {
+  accent-color: var(--cv-checkbox, var(--cv-accent));
+}
+:is(.resume, .markdown-rendered) td {
+  color: var(--cv-table-text, inherit);
+  background: var(--cv-table-background, transparent);
+}
+:is(.resume, .markdown-rendered) tr:nth-child(even of :has(td)) td {
+  background: var(--cv-table-stripe, var(--cv-table-background, transparent));
+}
+:is(.resume, .markdown-rendered) code {
+  color: var(--cv-code-text, inherit);
+  background: var(--cv-code-background, transparent);
+}
+:is(.resume, .markdown-rendered) pre code {
+  font-family: inherit;
+  color: inherit;
+  background: transparent;
+}
+/* Visual-editor cells and loose list items wrap text in paragraphs. Keep
+   their fonts consistent with the same Markdown in the PDF renderer. */
+:is(.resume, .markdown-rendered) :is(li, th, td, blockquote) p {
+  font-family: inherit;
+}
+@media print {
+  .resume {
+    width: 100% !important;
+    min-height: 0 !important;
+    transform: none !important;
+    padding: 0 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .resume h1,
+  .resume h2,
+  .resume h3,
+  .resume h4 {
+    break-after: avoid;
+  }
+  .resume p,
+  .resume li {
+    orphans: 3;
+    widows: 3;
+  }
+  .resume h3 + p {
+    break-after: avoid;
+  }
+  .resume li,
+  .resume tr {
+    break-inside: avoid;
+  }
+  .resume thead {
+    display: table-header-group;
+  }
+}

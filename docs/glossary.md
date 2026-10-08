@@ -11,9 +11,11 @@
 | Autosave | Gravação automática da aba em `content/cv` após editar (modo local) |
 | Salvar versão | Gravar arquivos locais imediatamente; não faz commit/push |
 | Conflito | Edição pendente numa aba cujo arquivo mudou no disco; pede escolha do usuário |
-| `pnpm cv` | CLI de versões (`list`, `new`, `check`) usado pela skill `cv-studio` |
+| `pnpm cv` | CLI usado pela skill `cv-studio`: versões (`list`, `new`, `check`), PDF (`pdf`) e vagas (`job list/add/update/preview/send`) |
 | Revisão | Hash para detectar alterações concorrentes |
 | Histórico | Commits preservando diferenças dos arquivos |
 | Contexto da vaga | Descrição, stack e responsabilidades para personalização |
 | Exportar PDF | Impressão nativa A4 com texto selecionável |
+| Prévia do email | Email exatamente como será enviado (De, Para, Assunto, pitch preenchido, anexo e pendências): ✈ na aba Vagas ou `pnpm cv job preview` |
+| Candidatura completa | Fluxo da skill: versão + pitch + PDF + vaga + prévia; o envio só ocorre após confirmação explícita do usuário |
 | ATS | Sistema de triagem; formato simples ajuda leitura, sem garantia de aprovação |

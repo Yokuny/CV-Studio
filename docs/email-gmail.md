@@ -44,7 +44,7 @@ O sistema preenche servidor, porta e criptografia automaticamente. A API guarda 
 3. Abra a prévia pelo botão de envio e confira destinatário, texto e PDF.
 4. Confirme o envio. Confira o histórico da vaga e a caixa de entrada do destinatário, inclusive o lixo eletrônico.
 
-A confirmação de conexão valida o login; o envio é uma ação separada. Para o PDF funcionar, mantenha `pnpm run dev` aberto e execute `pnpm setup:pdf` antes do primeiro envio.
+A confirmação de conexão valida o login; o envio é uma ação separada. Para o PDF funcionar, execute `pnpm setup:pdf` uma vez antes do primeiro envio.
 
 ## Problemas comuns e troca de computador
 

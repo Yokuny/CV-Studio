@@ -7,6 +7,16 @@
     "./model": "./src/model.ts",
     "./pitch": "./src/pitch.ts",
     "./jobs": "./src/jobs.ts",
-    "./mail": "./src/mail.ts"
+    "./mail": "./src/mail.ts",
+    "./resume": "./src/resume.ts",
+    "./resume.css": "./src/resume.css"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
   }
 }

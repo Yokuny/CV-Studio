@@ -15,21 +15,6 @@ import { useLayoutMetrics } from '@/hooks/use-layout-metrics';
 import { selectCurrent, selectHasDrafts, selectHasVersion, useResumes } from '@/store/resumes';
 import { useUi } from '@/store/ui';
 
-/**
- * With ?print=<slug>, the local API opens this page in Chromium to print the PDF attached to
- * an email. The page selects that version and flags when fonts and layout are ready.
- */
-async function markPrintReady() {
-  const id = new URLSearchParams(window.location.search).get('print');
-  if (id === null) return;
-  const { versions, select } = useResumes.getState();
-  const found = versions.some((v) => v.id === id);
-  if (found) select(id);
-  await document.fonts.ready;
-  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  document.documentElement.dataset.printReady = found ? 'ready' : 'missing';
-}
-
 export default function App() {
   const { name, layout } = useResumes(selectCurrent);
   const hasVersion = useResumes(selectHasVersion);
@@ -44,7 +29,7 @@ export default function App() {
   useLayoutMetrics({ header: headerRef, tabs: tabsRef, workspace: workspaceRef, paper: paperRef });
 
   useEffect(() => {
-    void useResumes.getState().load().then(markPrintReady);
+    void useResumes.getState().load();
     const warnAboutDrafts = (event: BeforeUnloadEvent) => {
       if (!selectHasDrafts(useResumes.getState())) return;
       event.preventDefault();

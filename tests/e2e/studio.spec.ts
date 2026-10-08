@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -211,7 +212,7 @@ test('restaura rascunho e aplica impressão A4 sem a interface', async ({ page }
 });
 
 test('modo estático permite editar e baixar sem fingir gravação no Git', async ({ page }) => {
-  await page.goto('http://127.0.0.1:4173');
+  await page.goto('http://localhost:4173');
   await expect(page.getByText('Modo de prévia:', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
   await page.getByRole('button', { name: 'Visualizar Texto', exact: true }).click();
@@ -362,7 +363,7 @@ test('abas confirmam exclusão, aceitam atalhos e removem arquivos e rascunhos',
 });
 
 test('fechar todas as abas em modo estático mostra estado vazio e permite recomeçar', async ({ page }) => {
-  await page.goto('http://127.0.0.1:4173');
+  await page.goto('http://localhost:4173');
   await expect(page.getByText('Modo de prévia:', { exact: false })).toBeVisible();
   while (await page.locator('.version-tab').count()) {
     await page.locator('.version-tab-close').first().click();
@@ -501,7 +502,7 @@ for (const mode of ['local', 'estático'] as const) {
   test(`cores de elementos persistem e aparecem no Markdown e na impressão em modo ${mode}`, async ({ page }) => {
     const name = `${id}-colors-${mode === 'local' ? 'local' : 'static'}`;
     try {
-      await page.goto(mode === 'local' ? '/' : 'http://127.0.0.1:4173');
+      await page.goto(mode === 'local' ? '/' : 'http://localhost:4173');
       await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled();
       await page.getByRole('button', { name: 'Nova Versão', exact: true }).click();
       await page.getByLabel('Nome da versão').fill(name);
@@ -637,7 +638,7 @@ for (const mode of ['local', 'estático'] as const) {
     const css = (font: FontFamily) =>
       font.includes(' ') ? fontFamilyCss(font) : fontFamilyCss(font).replaceAll('"', '');
     try {
-      await page.goto(mode === 'local' ? '/' : 'http://127.0.0.1:4173');
+      await page.goto(mode === 'local' ? '/' : 'http://localhost:4173');
       await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled();
       await page.getByRole('button', { name: 'Nova Versão', exact: true }).click();
       await page.getByLabel('Nome da versão').fill(name);
@@ -753,7 +754,7 @@ test('vagas: cadastra, persiste e mostra a prévia do email', async ({ page, req
   await page.goto('/');
   await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
   await page.getByRole('button', { name: 'Nova vaga' }).click();
-  await page.getByLabel('Empresa *').fill(company);
+  await page.getByLabel('Empresa', { exact: true }).fill(company);
   await page.getByLabel('Cargo *').fill('Backend Node');
   await page.getByLabel('Nome de quem recruta').fill('Ana');
   await page.getByLabel('Email de quem recruta').fill('ana@example.com');
@@ -773,8 +774,26 @@ test('vagas: cadastra, persiste e mostra a prévia do email', async ({ page, req
     await request.delete(`/api/jobs/${job.id}`, { data: {} });
 });
 
+test('vagas: uma vaga criada pelo CLI aparece sem recarregar a página', async ({ page, request }) => {
+  const company = `CLI ${id}`;
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Nova vaga' })).toBeVisible();
+  // Same database as the dev API of the tests (CV_STUDIO_DATA_DIR in playwright.config.ts).
+  const result = spawnSync(
+    'node_modules/.bin/tsx',
+    ['apps/api/scripts/cv.ts', 'job', 'add', '--resume', 'base', '--company', company, '--role', 'Backend Node'],
+    { encoding: 'utf8', env: { ...process.env, CV_STUDIO_DATA_DIR: 'test-results/data' } },
+  );
+  expect(result.status, result.stderr).toBe(0);
+  await expect(page.getByRole('row').filter({ hasText: company })).toBeVisible();
+  const jobs = await (await request.get('/api/jobs')).json();
+  for (const job of jobs.filter((j: { company: string }) => j.company === company))
+    await request.delete(`/api/jobs/${job.id}`, { data: {} });
+});
+
 test('modo estático não oferece vagas', async ({ page }) => {
-  await page.goto('http://127.0.0.1:4173');
+  await page.goto('http://localhost:4173');
   await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Visualizar Vagas', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Visualizar Pitch', exact: true }).click();

@@ -31,7 +31,6 @@ beforeEach(async () => {
   api = createApi({
     contentRoot: path.join(directory, 'content'),
     dataRoot: path.join(directory, 'data'),
-    webOrigin: 'http://127.0.0.1:1',
     outlookClientId: '73fa6100-f266-408d-a19c-4964a108cea0',
     mailOptions: {
       fetch: fetcher,
@@ -198,7 +197,6 @@ it('sem client ID no ambiente recusa o login e ignora o ID enviado pelo navegado
   api = createApi({
     contentRoot: path.join(directory, 'content'),
     dataRoot: path.join(directory, 'data'),
-    webOrigin: 'http://127.0.0.1:1',
     mailOptions: { fetch: fetcher, now: () => now },
   });
   vi.unstubAllEnvs();

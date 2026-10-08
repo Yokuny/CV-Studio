@@ -1,4 +1,4 @@
-import { type Job, type JobStatus, jobStatuses, jobStatusLabels } from '@cv-studio/core/jobs';
+import { type Job, type JobStatus, jobStatuses, jobStatusLabels, jobTitle } from '@cv-studio/core/jobs';
 import { mailConnected } from '@cv-studio/core/mail';
 import { ArrowDownToLine, ArrowUpFromLine, AtSign, ExternalLink, Pencil, Plus, Send } from 'lucide-react';
 import { useEffect, useRef } from 'react';
@@ -17,7 +17,7 @@ function StatusSelect({ job }: { job: Job }) {
   const setStatus = useJobs((s) => s.setStatus);
   return (
     <Select value={job.status} onValueChange={(status) => void setStatus(job, status as JobStatus)}>
-      <SelectTrigger size="sm" className="job-status" aria-label={`Status de ${job.role} — ${job.company}`}>
+      <SelectTrigger size="sm" className="job-status" aria-label={`Status de ${jobTitle(job)}`}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -47,7 +47,7 @@ function JobRow({ job }: { job: Job }) {
           )}
         </div>
         <div className="job-sub">
-          {job.company}
+          {job.company || '—'}
           {job.source && ` · ${job.source}`}
         </div>
       </TableCell>

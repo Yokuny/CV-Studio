@@ -103,8 +103,8 @@ export function JobDialog() {
             setBusy(false);
           }}
         >
-          <Field id="job-company" label="Empresa *">
-            <Input {...text('company')} required maxLength={200} autoFocus />
+          <Field id="job-company" label="Empresa">
+            <Input {...text('company')} maxLength={200} autoFocus />
           </Field>
           <Field id="job-role" label="Cargo *">
             <Input {...text('role')} required maxLength={200} />
@@ -180,7 +180,7 @@ export function JobDialog() {
             <Button type="button" variant="outline" onClick={() => setEditing(null)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={busy || !job.company.trim() || !job.role.trim()}>
+            <Button type="submit" disabled={busy || !job.role.trim()}>
               <Save /> Salvar vaga
             </Button>
           </DialogFooter>

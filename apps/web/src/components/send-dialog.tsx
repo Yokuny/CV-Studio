@@ -1,3 +1,4 @@
+import { jobTitle } from '@cv-studio/core/jobs';
 import { mailConnected } from '@cv-studio/core/mail';
 import { LoaderCircle, MessageSquareText, Paperclip, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -50,7 +51,7 @@ export function SendDialog() {
         <DialogHeader>
           <DialogTitle>Revisar email</DialogTitle>
           <DialogDescription>
-            {job ? `${job.role} — ${job.company}` : ''}
+            {job ? jobTitle(job) : ''}
             {account && ` · de ${account.fromName ? `${account.fromName} <${account.user}>` : account.user}`}
           </DialogDescription>
         </DialogHeader>

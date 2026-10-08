@@ -2,6 +2,21 @@
 
 Seu currículo em Markdown, com diagramação ajustável e versões por vaga no Git.
 
+## Como funciona
+
+O CV Studio roda **localmente** e usa a IA do seu editor de código (Claude Code, Codex…) como motor: a interface não chama modelos e não pede chaves. A skill `cv-studio` ensina a IA a trabalhar com os arquivos do projeto.
+
+1. Você passa à IA a descrição da vaga, a empresa, o cargo e o nome e email de quem recruta.
+2. A IA lê `content/cv/base.md` e o pitch base `content/cv/base.pitch.md`, cria a versão `content/cv/<slug>.md` adaptada à vaga e o pitch `<slug>.pitch.md`, sem inventar fatos, e valida com `pnpm cv check`.
+3. A IA cadastra a vaga (`pnpm cv job add`) já ligada a essa versão. Com `pnpm run dev` aberto, a nova aba e a vaga aparecem na interface sem recarregar.
+4. O envio tem prévia obrigatória e pode ser feito de dois jeitos:
+   - **Pela interface:** aba **Vagas** → ✈ mostra remetente, destinatário, assunto, pitch preenchido e o PDF anexado → **Enviar email**.
+   - **Sem a interface**, com a conta de email já conectada: a IA roda `pnpm cv job preview <id>`, mostra a prévia (e o PDF em `output/pdf/`) e só envia (`pnpm cv job send <id> --yes`) depois do seu "sim".
+
+Basta colar a descrição de uma vaga no chat do agente. O protocolo fica em `AGENTS.md`, lido pelo Codex, Cursor, Copilot e outros; `CLAUDE.md` o importa para o Claude Code e `GEMINI.md` é um link para ele. O agente extrai cargo, empresa e recrutadora e pergunta numa só vez o que faltou (nome e email de quem recruta, empresa opcional) e se o envio será pela interface ou direto por ele. Depois gera o CV, o pitch e a prévia, e só envia quando você aprovar.
+
+Exemplo de pedido: “Candidate-me a esta vaga de Backend Node na Acme, recrutadora Ana Souza (ana@acme.com): […descrição…]. Adapte o currículo e o pitch e me mostre a prévia antes de enviar.”
+
 ## Executar
 
 Node.js 24+ (usa o SQLite nativo do Node) e pnpm 11.11.0.
@@ -9,10 +24,10 @@ Node.js 24+ (usa o SQLite nativo do Node) e pnpm 11.11.0.
 ```sh
 pnpm install
 pnpm setup:pdf   # uma vez: baixa o Chromium que gera o PDF anexado aos emails
-pnpm run dev     # interface (5173) + API local Express (5174)
+pnpm run dev     # interface + API local Express, ambas em http://localhost:5173
 ```
 
-Abra http://127.0.0.1:5173. Cada aba é um arquivo em `content/cv`. **+ Nova Versão** copia o currículo aberto e grava os arquivos na hora. As edições de conteúdo e design são salvas automaticamente (Save força a gravação). Alterações feitas fora da interface, por você, pelo `pnpm cv` ou pela IA, aparecem nas abas sem recarregar a página. Se a aba tinha uma edição ainda não gravada, um aviso oferece **Recarregar do arquivo**, **Baixar meu Markdown** ou **Manter minha versão**.
+Abra http://localhost:5173. Cada aba é um arquivo em `content/cv`. **+ Nova Versão** copia o currículo aberto e grava os arquivos na hora. As edições de conteúdo e design são salvas automaticamente (Save força a gravação). Alterações feitas fora da interface, por você, pelo `pnpm cv` ou pela IA, aparecem nas abas sem recarregar a página. Se a aba tinha uma edição ainda não gravada, um aviso oferece **Recarregar do arquivo**, **Baixar meu Markdown** ou **Manter minha versão**.
 
 As versões aparecem em abas abaixo do header. **+ Nova Versão** fica no final e abre a cópia em uma nova aba. O **×**, o botão do meio do mouse, três cliques rápidos na aba ou a tecla **Delete** abrem a confirmação: **fechar significa excluir**. Confirmar remove a versão e seus rascunhos; no modo local, remove também seus três arquivos de `content/cv`. Exclusões aparecem no Git para revisão e commit. A interface permite fechar todas as abas e criar um novo currículo vazio.
 
@@ -43,6 +58,11 @@ docs/
 pnpm cv list                                        # versões e status no Git
 pnpm cv new backend-node --name "Backend Node"      # cria a versão a partir do base
 pnpm cv check backend-node                          # valida Markdown, layout e meta
+pnpm cv pdf backend-node --check                    # gera output/pdf/backend-node.pdf com o layout da versão
+pnpm cv job add --resume backend-node --company "Acme" --role "Backend Node" --recruiter "Ana" --email ana@acme.com
+pnpm cv job list                                    # vagas e status
+pnpm cv job preview 1                               # email como será enviado + PDF
+pnpm cv job send 1 --yes                            # envia (sem --yes, só mostra a prévia)
 ```
 
 `react-markdown` + `remark-gfm` renderizam títulos, listas, links e tabelas; HTML bruto não é executado. Conteúdo não fica no React. Variáveis CSS controlam fontes, altura de linha, tamanho do nome, margens, espaçamento e cores. Os tokens podem ser baixados em CSS.
@@ -52,6 +72,8 @@ pnpm cv check backend-node                          # valida Markdown, layout e 
 No header, antes do zoom, alterne entre **PDF** (currículo diagramado), **Markdown** (títulos, listas, links e tabelas renderizados) e **Edição** (código do arquivo aberto). O zoom ajusta a folha ou o tamanho do conteúdo nas outras visualizações. Ambos são editáveis: **Markdown** permite escrever no conteúdo formatado e aplicar títulos, negrito e listas; **Edição** permite alterar o código diretamente. Os dois atualizam a mesma versão, incluindo o editor lateral e a prévia PDF. O editor visual usa [Tiptap com suporte Markdown](https://tiptap.dev/docs/editor/markdown/getting-started/basic-usage). A exportação sempre imprime o currículo diagramado, inclusive quando o Markdown está visível.
 
 Clique **Exportar PDF**, escolha **Salvar como PDF**, **A4**, escala **100%** e desative cabeçalhos/rodapés do navegador. Ative gráficos de plano de fundo para papel colorido. O PDF preserva seleção de texto e links. A estimativa de páginas da prévia contínua pode diferir da impressão; confira a paginação final.
+
+Sem abrir a interface, `pnpm cv pdf <slug>` gera `output/pdf/<slug>.pdf` (fora do Git) com o mesmo HTML, CSS e layout (`<slug>.layout.json`, gravado pelo painel de design), impresso pelo Chromium do Playwright; é o mesmo motor do anexo dos emails. `--check` falha se houver texto passando da margem ou bloco maior que uma página.
 
 ## Pitch
 
@@ -74,7 +96,7 @@ Credenciais ficam em `data/mail-account.json`, fora do Git, e nunca voltam ao na
 
 ## IA
 
-A skill `cv-studio` (`.agents/skills/cv-studio`, lida pelo Codex; `.claude/skills/cv-studio` é um symlink para o Claude Code) conhece o contrato de arquivos, o CLI e a interface. Ela cria a versão com `pnpm cv new`, adapta o Markdown e o pitch preservando os fatos do base, valida com `pnpm cv check`, relata evidências e lacunas e **faz commit apenas dos arquivos da versão** (`cv(<slug>): …`), sem push. Com `pnpm run dev` aberto, a nova aba aparece enquanto a IA trabalha.
+A skill `cv-studio` (`.agents/skills/cv-studio`, lida pelo Codex; `.claude/skills/cv-studio` é um symlink para o Claude Code) conhece o contrato de arquivos, o CLI e a interface. Ela cria a versão com `pnpm cv new`, adapta o Markdown e o pitch preservando os fatos do base, valida com `pnpm cv check`, relata evidências e lacunas e **faz commit apenas dos arquivos da versão** (`cv(<slug>): …`), sem push. Com `pnpm run dev` aberto, a nova aba aparece enquanto a IA trabalha. Na candidatura completa, ela também cadastra a vaga e mostra a prévia do email; **só envia depois da sua confirmação explícita** daquele envio. Ela nunca edita `data/` direto nem lê suas credenciais, e conectar a conta de email é sempre com você, na interface.
 
 Exemplo: “Adapte o currículo para esta vaga backend Node.js/AWS/mensageria: […]. Explique os requisitos sem evidência.”
 

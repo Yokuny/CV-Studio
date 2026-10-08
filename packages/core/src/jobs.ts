@@ -83,7 +83,6 @@ export function parseJob(value: unknown): JobInput | string {
     if (field.length > limits[key]) return `Campo ${key} acima de ${limits[key]} caracteres.`;
     job[key] = field.trim();
   }
-  if (!job.company) return 'Informe a empresa.';
   if (!job.role) return 'Informe o cargo.';
   if (job.recruiterEmail && !emailPattern.test(job.recruiterEmail)) return 'Email de quem recruta inválido.';
   if (job.jobUrl && !/^https?:\/\//i.test(job.jobUrl)) return 'O link da vaga deve começar com http:// ou https://.';
@@ -99,6 +98,11 @@ export function parseJob(value: unknown): JobInput | string {
     return 'Data de candidatura inválida (use AAAA-MM-DD).';
   job.appliedAt = appliedAt;
   return job;
+}
+
+/** "Cargo — Empresa", or only the role when the company is not known. */
+export function jobTitle(job: Pick<Job, 'role' | 'company'>) {
+  return job.company ? `${job.role} — ${job.company}` : job.role;
 }
 
 /** Column order of the CSV export, also accepted by the import. */

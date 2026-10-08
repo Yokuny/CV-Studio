@@ -1,4 +1,4 @@
-import type { Job, JobInput, JobStatus, SentEmail } from '@cv-studio/core/jobs';
+import { type Job, type JobInput, type JobStatus, jobTitle, type SentEmail } from '@cv-studio/core/jobs';
 import type {
   MailAccountInput,
   MailAccountView,
@@ -98,7 +98,7 @@ export const useJobs = create<JobsState>()((set, get) => ({
           ? await api<Job>(`jobs/${editing.id}`, { method: 'PATCH', body: input })
           : await api<Job>('jobs', { method: 'POST', body: input });
       set((s) => ({ jobs: replace(s.jobs, job), editing: null }));
-      notify(`Vaga “${job.role} — ${job.company}” salva em data/cv-studio.db.`);
+      notify(`Vaga “${jobTitle(job)}” salva em data/cv-studio.db.`);
       return true;
     } catch (error) {
       notify((error as Error).message);
@@ -118,7 +118,7 @@ export const useJobs = create<JobsState>()((set, get) => ({
     try {
       await api(`jobs/${job.id}`, { method: 'DELETE', body: {} });
       set((s) => ({ jobs: s.jobs.filter((j) => j.id !== job.id), editing: null }));
-      notify(`Vaga “${job.role} — ${job.company}” excluída com seu histórico de envios.`);
+      notify(`Vaga “${jobTitle(job)}” excluída com seu histórico de envios.`);
     } catch (error) {
       notify((error as Error).message);
     }

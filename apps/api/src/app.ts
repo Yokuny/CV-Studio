@@ -1,10 +1,11 @@
 import { parseMailAccount, parseOutlookConnect } from '@cv-studio/core/mail';
 import express, { type ErrorRequestHandler } from 'express';
+import { printVersion } from './applications';
 import { openDatabase } from './db';
 import { contentEvents } from './events';
 import { jobsRouter } from './jobs';
 import { type MailOptions, mailAccount, mailError } from './mail';
-import { closePdfBrowser, renderPdf } from './pdf';
+import { closePdfBrowser } from './pdf';
 import { pitchesRouter } from './pitches';
 import { resumeFiles } from './repository';
 import { resumesRouter } from './resumes';
@@ -16,8 +17,6 @@ const outlookSetupError =
 export interface ApiOptions {
   contentRoot: string;
   dataRoot: string;
-  /** Origin of the studio UI, opened by Chromium to print the PDF attachment. */
-  webOrigin: string;
   /** Replaces the Chromium printer, for tests. */
   renderPdf?: (id: string) => Promise<Buffer>;
   mailOptions?: MailOptions;
@@ -25,14 +24,14 @@ export interface ApiOptions {
 }
 
 /** The local API of CV Studio: resume files, pitches, jobs and email. Never meant to be hosted. */
-export function createApi({ contentRoot, dataRoot, webOrigin, ...options }: ApiOptions) {
+export function createApi({ contentRoot, dataRoot, ...options }: ApiOptions) {
   const files = resumeFiles(contentRoot);
   const db = openDatabase(dataRoot);
   const mail = mailAccount(dataRoot, options.mailOptions);
   const outlookClientId = options.outlookClientId ?? process.env.CV_STUDIO_OUTLOOK_CLIENT_ID;
   const outlookConfigured = () =>
     typeof parseOutlookConnect({ user: 'config@example.com', clientId: outlookClientId }) !== 'string';
-  const events = contentEvents(contentRoot);
+  const events = contentEvents(contentRoot, dataRoot);
   // File writes run one at a time, so conflict checks see the result of the previous save.
   let queue: Promise<unknown> = Promise.resolve();
   const serialize = <T>(task: () => Promise<T>) => {
@@ -47,10 +46,7 @@ export function createApi({ contentRoot, dataRoot, webOrigin, ...options }: ApiO
   app.get('/api/events', (_req, res) => events.subscribe(res));
   app.use('/api/resumes', resumesRouter(files, serialize));
   app.use('/api/pitches', pitchesRouter(files, serialize));
-  app.use(
-    '/api/jobs',
-    jobsRouter({ db, files, mail, renderPdf: options.renderPdf ?? ((id) => renderPdf(webOrigin, id)) }),
-  );
+  app.use('/api/jobs', jobsRouter({ db, files, mail, renderPdf: options.renderPdf ?? printVersion(files) }));
   app.get('/api/mail/account', async (_req, res) => {
     res.json(await mail.view());
   });

@@ -52,7 +52,7 @@ Para trocar de aplicativo, atualize o valor em `.env.local`, reinicie a API e fa
 
 ## 4. Autorizar a conta e testar a conexão
 
-1. Abra <http://127.0.0.1:5173> e entre em **Vagas → Conectar email**.
+1. Abra <http://localhost:5173> e entre em **Vagas → Conectar email**.
 2. Selecione **Outlook / Hotmail**, informe seu email pessoal completo e o nome do remetente.
 3. Clique em **Entrar com Microsoft**. Se o botão estiver desabilitado com um aviso sobre `CV_STUDIO_OUTLOOK_CLIENT_ID`, volte à seção 3.
 4. Copie o código pelo botão ao lado dele e clique em **Abrir login Microsoft**.
@@ -76,7 +76,7 @@ A API confirma o login SMTP antes de salvar a conta, sem enviar email. Após con
 
 A API usa a autoridade Microsoft `consumers`, guarda access token e refresh token em `data/mail-account.json` (permissão `0600`, fora do Git) e renova o acesso automaticamente. Não edite esse arquivo nem copie tokens para `.env` ou `.env.local`. Há uma conta de envio por instalação.
 
-Para testar um envio real, cadastre uma vaga com destinatário que você controla, preencha assunto e pitch, escolha o currículo e confira a prévia antes de confirmar. Mantenha `pnpm run dev` aberto para gerar o PDF e confira também o lixo eletrônico do destinatário.
+Para testar um envio real, cadastre uma vaga com destinatário que você controla, preencha assunto e pitch, escolha o currículo e confira a prévia antes de confirmar. O PDF é gerado pela API com o Chromium (`pnpm setup:pdf` uma vez); confira também o lixo eletrônico do destinatário.
 
 ## Problemas comuns e troca de computador
 

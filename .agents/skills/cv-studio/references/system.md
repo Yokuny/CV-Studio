@@ -25,6 +25,12 @@ Usa as mesmas regras da API local (`apps/api/src/repository.ts`, `apps/api/src/c
 | `pnpm cv list` | Lista as versões, nomes e status no Git |
 | `pnpm cv new <slug> --name "<nome>" [--from base]` | Copia `.md`, `.layout.json` e o pitch da origem (ou o base) e grava o meta; falha se o slug existir; avisa se o limite de 20 pitches apagou algum |
 | `pnpm cv check [slug]` | Valida H1 único, ausência de HTML, layout, meta, pitch (variáveis) e nomes; exit ≠ 0 em erro |
+| `pnpm cv pdf <slug> [--check]` | Gera `output/pdf/<slug>.pdf` (fora do Git) com o layout da versão; informa páginas e avisos (texto passando da margem, item/linha de tabela maior que uma página). Com `--check`, exit ≠ 0 se houver aviso |
+| `pnpm cv job list` | Lista as vagas: id, cargo, empresa, status, versão e email |
+| `pnpm cv job add --resume <slug> --company "…" --role "…" [--recruiter "…"] [--email …] [--url …] [--source …] [--subject "…"] [--notes-file <arquivo>]` | Cadastra a vaga como **Rascunho** (mesma validação da interface) e imprime o id |
+| `pnpm cv job update <id> [mesmos campos]` | Altera os campos informados; status e data de candidatura seguem os envios |
+| `pnpm cv job preview <id>` | Mostra De, Para, Assunto, Anexo (com páginas), pitch preenchido e pendências; grava o PDF em `output/pdf/` |
+| `pnpm cv job send <id> [--yes]` | Sem `--yes`: mostra a prévia e sai com código 2, sem enviar. Com `--yes`: envia por SMTP com o PDF anexado, se não houver pendências e a conta estiver conectada |
 
 ## Markdown que o renderizador entende
 
@@ -48,7 +54,7 @@ Sem emojis decorativos, estilos inline ou instruções dentro do conteúdo.
 
 - **Aba = arquivo.** "+ Nova Versão" grava o trio na hora (no modo local), copiando a aba aberta.
 - **Autosave.** Edições na interface são gravadas cerca de 0,8 s depois da última alteração. O botão Save força a gravação imediata.
-- **Sincronização ao vivo.** A API Express local (`apps/api`, porta 5174, atrás do proxy do Vite) observa `content/cv` e avisa a interface por server-sent events (`/api/events`). A interface relê currículos e pitches e então:
+- **Sincronização ao vivo.** A API Express local (`apps/api`, montada no servidor de dev do Vite, na mesma origem da interface) observa `content/cv` e avisa a interface por server-sent events (`/api/events`). A interface relê currículos e pitches e então:
   - abas sem edições pendentes passam a mostrar o disco;
   - arquivos novos abrem abas;
   - arquivos removidos fecham abas.
@@ -59,7 +65,7 @@ Sem emojis decorativos, estilos inline ou instruções dentro do conteúdo.
 
 ## Vagas e email
 
-A aba **Vagas** guarda as candidaturas em `data/cv-studio.db` (SQLite nativo do Node, versionado no Git) e envia o email por SMTP com o pitch da versão escolhida e o PDF dela anexado. A conta SMTP fica em `data/mail-account.json`, fora do Git. **A skill não envia emails, não lê nem altera `data/`**: o envio é sempre uma ação do usuário na interface.
+A aba **Vagas** guarda as candidaturas em `data/cv-studio.db` (SQLite nativo do Node, versionado no Git) e envia o email por SMTP com o pitch da versão escolhida e o PDF dela anexado. A conta SMTP fica em `data/mail-account.json`, fora do Git. A skill altera vagas só pelo `pnpm cv job`; **nunca edita `data/` direto nem lê `mail-account.json`**. O envio acontece de duas formas: o usuário clica em **Enviar email** na prévia ✈ da aba Vagas, ou a skill roda `pnpm cv job send <id> --yes` depois de mostrar a prévia (`pnpm cv job preview`) e receber a confirmação explícita daquele envio. Vagas criadas pelo CLI chegam à interface aberta pelo evento `jobs` de `/api/events`. Conectar a conta de email (Gmail com senha de app, Outlook com login Microsoft) é sempre feito pelo usuário na interface.
 
 ## Git
 
@@ -67,4 +73,4 @@ A interface só grava arquivos. Quem registra o histórico é a skill, com commi
 
 ## Impressão
 
-A exportação usa `window.print()`; o anexo do email é gerado pela API com o Chromium do Playwright, imprimindo a mesma página com `@page` A4 e margens do layout. Cabeçalhos ficam junto da experiência seguinte, e bullets e linhas de tabela não quebram. Escala 100%, sem cabeçalhos/rodapés do navegador e com gráficos de fundo ativados para papel colorido.
+Há um só desenho de página: o componente `ResumeMarkdown` e o `resume.css` de `packages/core`, com os tokens de `<slug>.layout.json` (gravados pelo painel de design da interface). A exportação da interface usa `window.print()` sobre esse desenho; o anexo do email e o `pnpm cv pdf` usam `apps/api/src/resume-html.ts`, que monta a mesma página sem a interface, e o Chromium do Playwright a imprime com `@page` A4 e as margens do layout (exige `pnpm setup:pdf` uma vez, não exige `pnpm run dev`). Cabeçalhos ficam junto da experiência seguinte, e bullets e linhas de tabela não quebram. Escala 100%, sem cabeçalhos/rodapés do navegador e com gráficos de fundo ativados para papel colorido.

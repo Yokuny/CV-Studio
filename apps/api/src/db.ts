@@ -86,7 +86,8 @@ const params = (job: JobInput) => [
 export function openDatabase(dataRoot: string) {
   mkdirSync(dataRoot, { recursive: true });
   const db = new DatabaseSync(path.join(dataRoot, 'cv-studio.db'));
-  db.exec('PRAGMA journal_mode = DELETE; PRAGMA foreign_keys = ON;');
+  // The `pnpm cv job` CLI may write while the dev API has the file open.
+  db.exec('PRAGMA journal_mode = DELETE; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   const version = Number((db.prepare('PRAGMA user_version').get() as Row).user_version);
   for (const [index, sql] of migrations.entries()) {
     if (index < version) continue;

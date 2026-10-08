@@ -36,9 +36,9 @@
 
 **Contexto:** enviar candidaturas por email exige um servidor que guarde credenciais, gere PDF e fale SMTP; o plugin Vite só servia aos arquivos de currículo.
 
-**Decisão:** monorepo pnpm com `apps/web` (Vite), `apps/api` (Express em 127.0.0.1:5174) e `packages/core` (modelo e regras sem dependências de Node). Toda a API sai do Vite: `/api/resumes` mantém a semântica (fila serializada, revisão SHA-256, 409, Host/Origin locais) e o aviso de mudanças externas passa a ser SSE (`/api/events`, `fs.watch`). O Vite faz proxy de `/api` no dev e mantém um plugin mínimo que impede o reload pelo glob de `content/cv`. `content/` e `data/` ficam na raiz, compartilhados por API, CLI e skill.
+**Decisão:** monorepo pnpm com `apps/web` (Vite), `apps/api` (Express) e `packages/core` (modelo e regras sem dependências de Node). Toda a API sai do Vite: `/api/resumes` mantém a semântica (fila serializada, revisão SHA-256, 409, Host/Origin locais) e o aviso de mudanças externas passa a ser SSE (`/api/events`, `fs.watch`). No dev, o Vite carrega a API pelo SSR em `/api`, na mesma origem e porta da UI (sem segundo processo nem proxy), recriando-a quando o código da API ou do core muda, e mantém um plugin mínimo que impede o reload pelo glob de `content/cv`. `content/` e `data/` ficam na raiz, compartilhados por API, CLI e skill.
 
-**Consequência:** `pnpm run dev` sobe os dois processos. O `vite preview` não tem proxy, então o build estático continua sem gravação.
+**Consequência:** `pnpm run dev` sobe um único processo em http://localhost:5173. O `vite preview` não tem API, então o build estático continua sem gravação.
 
 ## 006 — Vagas em SQLite nativo versionado
 
@@ -54,7 +54,7 @@
 
 **Decisão:** o pitch é um arquivo `content/cv/<slug>.pitch.md` (texto puro, variáveis `{{empresa}}`, `{{cargo}}`, `{{recrutadora}}`, `{{nome}}`), editado na aba Pitch com autosave e conflito próprios e adaptado pela skill. Sem arquivo, a versão usa `base.pitch.md`. Até 20 pitches de versão: gravar um novo além disso apaga o mais antigo por mtime (o Git guarda o histórico). O pitch não entra na revisão do currículo. O envio usa nodemailer com senha de app Gmail (465/SSL) ou OAuth2 Outlook (587/STARTTLS obrigatório), com as credenciais em `data/mail-account.json` (0600, fora do Git, nunca devolvidas à UI). O anexo é gerado pela API com o Chromium do Playwright, abrindo `/?print=<slug>` e imprimindo com `page.pdf` e o mesmo `@page` A4. O envio é bloqueado enquanto houver variável sem valor, variável desconhecida ou o trecho de exemplo do pitch.
 
-**Consequência:** gerar o anexo exige a UI de dev rodando e `pnpm setup:pdf` uma vez. Agentes não enviam emails.
+**Consequência:** gerar o anexo exige `pnpm setup:pdf` uma vez (desde a ADR 010, não exige mais a UI de dev aberta). Agentes não enviavam emails; a ADR 011 permite o envio pelo CLI com confirmação explícita.
 
 ## 008 — Conexão Outlook com OAuth2 Microsoft
 
@@ -71,6 +71,22 @@
 **Decisão:** Gmail usa `smtp.gmail.com:465` com TLS e senha de app da própria Conta Google. **Salvar e testar** autentica antes de substituir as credenciais persistidas, sem enviar email; falhas preservam a conta anterior. A API devolve uma flag `verified` e a interface marca Gmail/custom como conectados apenas quando essa flag e a presença de senha forem verdadeiras. **Salvar** sem teste guarda configuração pendente; mudanças de conta, servidor ou senha invalidam uma confirmação anterior. Senhas em grupos de quatro são normalizadas; a senha não é devolvida ao navegador. Outlook preserva seu fluxo OAuth2.
 
 **Consequência:** uma conta de envio por instalação local, com endereço definido pelo usuário e sem remetente fixo no código. Senha de app requer verificação em duas etapas na Conta Google. Os testes usam credenciais fictícias e SMTP simulado; não validam contas reais de usuários.
+
+## 010 — Renderizador de PDF compartilhado e independente da UI
+
+**Contexto:** o anexo do email era impresso abrindo `/?print=<slug>` da UI de dev, então a candidatura sem interface (CLI e skill) não conseguia gerar o PDF. O PDF precisa sair igual à prévia e ao **Exportar PDF**, com a diagramação que o usuário define no painel de design.
+
+**Decisão:** a página do currículo tem uma só fonte. `ResumeMarkdown` (`packages/core/src/resume.ts`, `react-markdown` + `remark-gfm` com o alinhamento por bloco) e `packages/core/src/resume.css` são usados pela folha da UI e por `apps/api/src/resume-html.ts`. Esse módulo gera um HTML autônomo: `meta charset`, o subconjunto do preflight do Tailwind que afeta o currículo, os tokens de `<slug>.layout.json` (`layoutCssDeclarations`) e `@page` A4 com a margem do layout. O Chromium do Playwright o carrega com `setContent` e imprime com `page.pdf`. Antes de imprimir, uma checagem no DOM aponta elementos que passam da margem direita e itens ou linhas de tabela mais altos que a área útil. `pnpm cv pdf <slug> [--check]` grava em `output/pdf/`. As personalizações já persistiam em `<slug>.layout.json` (autosave do painel), então não foi criado outro formato. Foi recusado o WeasyPrint, usado pela skill `doc-html-pdf` de outro projeto: ele respeita melhor `break-inside` em `<tr>`, mas renderiza diferente da prévia do navegador, que é a referência do usuário, e exige Python e pango. As linhas da tabela de competências são curtas, e a checagem aponta o caso que racharia.
+
+**Consequência:** a prévia, o **Exportar PDF**, o anexo e o CLI usam o mesmo HTML e CSS. O anexo não depende mais de `pnpm run dev`. A rota `?print` saiu. Uma mudança de estilo do currículo é feita em `resume.css`; o CSS da interface fica em `index.css`.
+
+## 011 — Candidatura completa pelo CLI, com envio sob confirmação
+
+**Contexto:** a IA do editor adaptava currículo e pitch, mas o usuário ainda cadastrava a vaga à mão, e não havia envio sem a interface.
+
+**Decisão:** `apps/api/src/applications.ts` concentra a montagem do email (`composeEmail`) e o envio (`sendApplication`, com histórico e status). A rota `/api/jobs` e o CLI `pnpm cv job list|add|update|preview|send` chamam essas mesmas funções. `send` sem `--yes` só mostra a prévia e sai com código 2. Com `--yes`, recusa enquanto houver pendência ou conta não conectada. A skill pode criar e editar vagas pelo CLI e enviar só depois de mostrar a prévia e receber confirmação explícita daquele envio. Ela nunca edita `data/` direto nem lê `mail-account.json`, e a conexão da conta continua só na interface. A API observa `data/cv-studio.db` e emite `jobs` em `/api/events`, para a aba Vagas recarregar. O SQLite usa `busy_timeout` porque CLI e API podem abrir o banco juntos. A empresa passou a ser opcional na vaga (só o cargo é obrigatório); um pitch com `{{empresa}}` continua bloqueado até ela ser preenchida. O protocolo disparado por uma descrição de vaga fica em `AGENTS.md`, importado por `CLAUDE.md` e ligado como `GEMINI.md`, para valer em qualquer agente.
+
+**Consequência:** a candidatura funciona pela UI ou só pelo terminal, com a mesma prévia e as mesmas regras de bloqueio. O envio por agente depende da disciplina da skill e do `--yes`; o histórico registra cada tentativa. A renovação de tokens Outlook é serializada por processo; CLI e UI enviando ao mesmo tempo podem renovar duas vezes, o que é aceito pelo uso pessoal.
 
 ## Fonte e pontos a confirmar
 

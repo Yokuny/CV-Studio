@@ -8,9 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm -r --parallel --filter \"./apps/*\" dev",
-    "dev:web": "pnpm --filter @cv-studio/web dev",
-    "dev:api": "pnpm --filter @cv-studio/api dev",
+    "dev": "pnpm --filter @cv-studio/web dev",
     "build": "tsc -b && pnpm --filter @cv-studio/web build",
     "preview": "pnpm --filter @cv-studio/web preview",
     "test": "vitest run",
