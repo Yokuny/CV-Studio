@@ -1,11 +1,11 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { defaultLayout } from '@cv-studio/core/model';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { checkMarkdown, checkVersions } from '../server/check';
-import { resumeFiles, revision } from '../server/repository';
-import { defaultLayout } from '../src/lib/model';
-import { mergeDisk, snapshot, type Version } from '../src/lib/repository';
+import { checkMarkdown, checkVersions } from '../apps/api/src/check';
+import { resumeFiles, revision } from '../apps/api/src/repository';
+import { mergeDisk, snapshot, type Version } from '../apps/web/src/lib/repository';
 
 const version = (id: string, markdown: string, rev: string | null = `r-${markdown}`): Version => ({
   id,

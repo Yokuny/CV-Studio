@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-import { revision } from '../server/resumes';
 import {
   defaultLayout,
   elementColors,
@@ -13,7 +11,9 @@ import {
   textAlignments,
   validLayout,
   validResume,
-} from '../src/lib/model';
+} from '@cv-studio/core/model';
+import { describe, expect, it } from 'vitest';
+import { revision } from '../apps/api/src/repository';
 
 const resume = {
   id: 'base',

@@ -1,0 +1,12 @@
+{
+  "name": "@cv-studio/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./model": "./src/model.ts",
+    "./pitch": "./src/pitch.ts",
+    "./jobs": "./src/jobs.ts",
+    "./mail": "./src/mail.ts"
+  }
+}

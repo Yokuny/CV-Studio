@@ -22,7 +22,7 @@
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
     {
-      "includes": ["src/index.css"],
+      "includes": ["apps/web/src/index.css"],
       "linter": { "rules": { "complexity": { "noImportantStyles": "off" } } }
     }
   ]

@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { elementColorGroups, elementFontGroups, type FontFamily, fontFamilyCss, fonts } from '@cv-studio/core/model';
 import { expect, test } from '@playwright/test';
-import { elementColorGroups, elementFontGroups, type FontFamily, fontFamilyCss, fonts } from '../../src/lib/model';
 
 const id = `e2e-${Date.now()}`;
 const read = (file: string) => fs.readFile(`content/cv/${file}`, 'utf8').catch(() => '');
 // Local tests edit the base too, and autosave writes it to content/cv; restore it after each test.
-const baseFiles = ['base.md', 'base.layout.json', 'base.meta.json'];
+const baseFiles = ['base.md', 'base.layout.json', 'base.meta.json', 'base.pitch.md'];
 let baseSnapshot: (string | undefined)[] = [];
 test.beforeAll(async () => {
   baseSnapshot = await Promise.all(baseFiles.map((f) => fs.readFile(`content/cv/${f}`, 'utf8').catch(() => undefined)));
@@ -26,7 +26,9 @@ test.afterEach(async ({ page }) => {
 });
 test.afterAll(async () => {
   await Promise.all(
-    ['md', 'layout.json', 'meta.json'].map((ext) => fs.rm(path.join('content/cv', `${id}.${ext}`), { force: true })),
+    ['md', 'layout.json', 'meta.json', 'pitch.md'].map((ext) =>
+      fs.rm(path.join('content/cv', `${id}.${ext}`), { force: true }),
+    ),
   );
 });
 
@@ -145,7 +147,7 @@ test('aba é arquivo: acompanha alterações externas e resolve conflitos', asyn
   const name = `${id}-sync`;
   const external = `${id}-agente`;
   const all = [name, external].flatMap((v) =>
-    ['md', 'layout.json', 'meta.json'].map((ext) => `content/cv/${v}.${ext}`),
+    ['md', 'layout.json', 'meta.json', 'pitch.md'].map((ext) => `content/cv/${v}.${ext}`),
   );
   try {
     await page.goto('/');
@@ -345,7 +347,7 @@ test('abas confirmam exclusão, aceitam atalhos e removem arquivos e rascunhos',
     await page.getByRole('button', { name: `Fechar e excluir ${name}`, exact: true }).click();
     await page.getByRole('button', { name: 'Fechar e excluir', exact: true }).click();
     await expect(versionTab).toHaveCount(0);
-    for (const ext of ['md', 'layout.json', 'meta.json']) {
+    for (const ext of ['md', 'layout.json', 'meta.json', 'pitch.md']) {
       await expect(fs.access(`content/cv/${name}.${ext}`)).rejects.toThrow();
     }
     await page.reload();
@@ -354,7 +356,7 @@ test('abas confirmam exclusão, aceitam atalhos e removem arquivos e rascunhos',
     expect(await page.evaluate(() => localStorage.getItem('cv-studio:drafts:v1'))).not.toContain(name);
   } finally {
     await Promise.all(
-      ['md', 'layout.json', 'meta.json'].map((ext) => fs.rm(`content/cv/${name}.${ext}`, { force: true })),
+      ['md', 'layout.json', 'meta.json', 'pitch.md'].map((ext) => fs.rm(`content/cv/${name}.${ext}`, { force: true })),
     );
   }
 });
@@ -490,7 +492,7 @@ test('editores visual e de código sincronizam, preservam tabelas e salvam Markd
     await expect.poll(() => read(`${name}.md`)).toContain('# Título editado no código');
   } finally {
     await Promise.all(
-      ['md', 'layout.json', 'meta.json'].map((ext) => fs.rm(`content/cv/${name}.${ext}`, { force: true })),
+      ['md', 'layout.json', 'meta.json', 'pitch.md'].map((ext) => fs.rm(`content/cv/${name}.${ext}`, { force: true })),
     );
   }
 });
@@ -605,7 +607,9 @@ for (const mode of ['local', 'estático'] as const) {
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     } finally {
       await Promise.all(
-        ['md', 'layout.json', 'meta.json'].map((ext) => fs.rm(`content/cv/${name}.${ext}`, { force: true })),
+        ['md', 'layout.json', 'meta.json', 'pitch.md'].map((ext) =>
+          fs.rm(`content/cv/${name}.${ext}`, { force: true }),
+        ),
       );
     }
   });
@@ -721,8 +725,244 @@ for (const mode of ['local', 'estático'] as const) {
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     } finally {
       await Promise.all(
-        ['md', 'layout.json', 'meta.json'].map((ext) => fs.rm(`content/cv/${name}.${ext}`, { force: true })),
+        ['md', 'layout.json', 'meta.json', 'pitch.md'].map((ext) =>
+          fs.rm(`content/cv/${name}.${ext}`, { force: true }),
+        ),
       );
     }
   });
 }
+
+test('pitch por versão: grava o arquivo e acompanha alterações externas', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Visualizar Pitch', exact: true }).click();
+  const editor = page.getByLabel('Editar pitch');
+  await expect(editor).toHaveValue(/\{\{empresa\}\}/);
+  await editor.fill('Olá, {{recrutadora}}! Pitch editado no teste para {{cargo}}.\n');
+  await expect.poll(() => read('base.pitch.md')).toBe('Olá, {{recrutadora}}! Pitch editado no teste para {{cargo}}.\n');
+  // An agent rewrites the pitch: the clean editor follows the file over /api/events.
+  await fs.writeFile('content/cv/base.pitch.md', 'Pitch reescrito pela IA para {{empresa}}.\n');
+  await expect(editor).toHaveValue('Pitch reescrito pela IA para {{empresa}}.\n');
+  expect(errors).toEqual([]);
+});
+
+test('vagas: cadastra, persiste e mostra a prévia do email', async ({ page, request }) => {
+  const company = `Empresa ${id}`;
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
+  await page.getByRole('button', { name: 'Nova vaga' }).click();
+  await page.getByLabel('Empresa *').fill(company);
+  await page.getByLabel('Cargo *').fill('Backend Node');
+  await page.getByLabel('Nome de quem recruta').fill('Ana');
+  await page.getByLabel('Email de quem recruta').fill('ana@example.com');
+  await page.getByRole('button', { name: 'Salvar vaga' }).click();
+  const row = page.getByRole('row').filter({ hasText: company });
+  await expect(row).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
+  await expect(row).toBeVisible();
+  await row.getByRole('button', { name: 'Revisar e enviar email' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Candidatura — Backend Node');
+  await expect(dialog).toContainText('Ana <ana@example.com>');
+  await expect(dialog.getByRole('button', { name: 'Enviar email' })).toBeDisabled();
+  const jobs = await (await request.get('/api/jobs')).json();
+  for (const job of jobs.filter((j: { company: string }) => j.company === company))
+    await request.delete(`/api/jobs/${job.id}`, { data: {} });
+});
+
+test('modo estático não oferece vagas', async ({ page }) => {
+  await page.goto('http://127.0.0.1:4173');
+  await expect(page.getByRole('button', { name: /^Export$/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Visualizar Vagas', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Visualizar Pitch', exact: true }).click();
+  await expect(page.getByLabel('Editar pitch')).toHaveValue(/\{\{recrutadora\}\}/);
+});
+
+test('Outlook: autoriza com Microsoft, confirma conexão e não pede senha', async ({ page }) => {
+  await page.route('**/api/mail/outlook/config', (route) => route.fulfill({ json: { configured: true } }));
+  await page.route('**/api/mail/account', (route) => route.fulfill({ json: null }));
+  await page.route('**/api/mail/outlook/start', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ user: 'felipe.vni@hotmail.com', fromName: '' });
+    await route.fulfill({
+      json: {
+        sessionId: 'test-session',
+        userCode: 'TEST-CODE',
+        verificationUri: 'https://microsoft.com/devicelogin',
+        interval: 1,
+        expiresAt: Date.now() + 60000,
+      },
+    });
+  });
+  let polls = 0;
+  const account = {
+    provider: 'outlook',
+    user: 'felipe.vni@hotmail.com',
+    fromName: 'Felipe',
+    host: 'smtp-mail.outlook.com',
+    port: 587,
+    secure: false,
+    hasPassword: false,
+    hasOAuth: true,
+  };
+  await page.route('**/api/mail/outlook/poll', (route) =>
+    route.fulfill({ json: ++polls === 1 ? { status: 'pending', interval: 1 } : { status: 'connected', account } }),
+  );
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
+  await page.getByRole('button', { name: /Conectar email/ }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Provedor').click();
+  await page.getByRole('option', { name: 'Outlook / Hotmail' }).click();
+  await expect(dialog.getByLabel('Senha de app')).toHaveCount(0);
+  await dialog.getByLabel('Email', { exact: true }).fill(account.user);
+  await dialog.getByRole('button', { name: 'Entrar com Microsoft' }).click();
+  await expect(dialog.getByRole('status')).toContainText('TEST-CODE');
+  await expect(dialog.getByRole('link', { name: 'Abrir login Microsoft' })).toHaveAttribute(
+    'href',
+    'https://microsoft.com/devicelogin',
+  );
+  await expect(dialog.getByRole('button', { name: 'Testar conexão' })).toBeVisible();
+  await expect(dialog.getByRole('status')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: /felipe.vni@hotmail.com conectado/ })).toBeVisible();
+});
+
+test('Outlook: cancela autorização e mostra expiração sem marcar conectado', async ({ page }) => {
+  await page.route('**/api/mail/outlook/config', (route) => route.fulfill({ json: { configured: true } }));
+  const account = {
+    provider: 'outlook',
+    user: 'felipe.vni@hotmail.com',
+    fromName: 'Felipe',
+    host: 'smtp-mail.outlook.com',
+    port: 587,
+    secure: false,
+    hasPassword: false,
+    hasOAuth: false,
+  };
+  await page.route('**/api/mail/account', (route) => route.fulfill({ json: account }));
+  await page.route('**/api/mail/outlook/start', (route) =>
+    route.fulfill({
+      json: {
+        sessionId: 'test-session',
+        userCode: 'TEST-CODE',
+        verificationUri: 'https://microsoft.com/devicelogin',
+        interval: 1,
+        expiresAt: Date.now() + 60000,
+      },
+    }),
+  );
+  let cancelled = false;
+  await page.route('**/api/mail/outlook/cancel', (route) => {
+    cancelled = true;
+    return route.fulfill({ json: { ok: true } });
+  });
+  await page.route('**/api/mail/outlook/poll', (route) =>
+    route.fulfill({ status: 502, json: { error: 'O código Microsoft expirou. Inicie novamente.' } }),
+  );
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
+  await page.getByRole('button', { name: /felipe.vni@hotmail.com pendente/ }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Entrar com Microsoft' }).click();
+  await dialog.getByRole('button', { name: 'Cancelar conexão' }).click();
+  await expect.poll(() => cancelled).toBe(true);
+  await expect(dialog.getByRole('status')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Entrar com Microsoft' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('expirou');
+  await expect(dialog.getByRole('button', { name: 'Testar conexão' })).toHaveCount(0);
+});
+
+test('Gmail: cada usuário informa a própria conta e conecta após confirmar SMTP', async ({ page }) => {
+  await page.route('**/api/mail/account', (route) => route.fulfill({ json: null }));
+  let attempts = 0;
+  const account = {
+    provider: 'gmail',
+    user: 'usuario.pessoal@gmail.com',
+    fromName: 'Usuário',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    hasPassword: true,
+    hasOAuth: false,
+    verified: true,
+  };
+  await page.route('**/api/mail/connect', async (route) => {
+    expect(route.request().postDataJSON()).toMatchObject({
+      provider: 'gmail',
+      user: account.user,
+      password: 'abcd efgh ijkl mnop',
+    });
+    await route.fulfill(
+      ++attempts === 1 ? { status: 502, json: { error: 'O Gmail recusou o login.' } } : { json: account },
+    );
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
+  await page.getByRole('button', { name: /Conectar email/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('note')).toHaveCount(0);
+  await expect(dialog.getByRole('link', { name: 'Criar senha de app no Google' })).toHaveAttribute(
+    'href',
+    'https://myaccount.google.com/apppasswords',
+  );
+  await dialog.getByLabel('Email', { exact: true }).fill(account.user);
+  await dialog.getByLabel('Senha de app').fill('abcd efgh ijkl mnop');
+  await dialog.getByRole('button', { name: 'Salvar e testar' }).click();
+  await expect(page.getByText('O Gmail recusou o login.', { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue(account.user);
+  await dialog.getByRole('button', { name: 'Salvar e testar' }).click();
+  await expect(dialog.getByLabel('Senha de app')).toHaveValue('');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: /usuario.pessoal@gmail.com conectado/ })).toBeVisible();
+});
+
+test('Outlook: client ID vem só do .env.local, sem campo na interface', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.route('**/api/mail/account', (route) => route.fulfill({ json: null }));
+  await page.route('**/api/mail/outlook/config', (route) => route.fulfill({ json: { configured: true } }));
+  await page.route('**/api/mail/outlook/start', async (route) => {
+    expect(route.request().postDataJSON()).not.toHaveProperty('clientId');
+    await route.fulfill({
+      json: {
+        sessionId: 'configured-session',
+        userCode: 'TEST-CODE',
+        verificationUri: 'https://microsoft.com/devicelogin',
+        interval: 60,
+        expiresAt: Date.now() + 600000,
+      },
+    });
+  });
+  await page.route('**/api/mail/outlook/cancel', (route) => route.fulfill({ json: { ok: true } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
+  await page.getByRole('button', { name: /Conectar email/ }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Provedor').click();
+  await page.getByRole('option', { name: 'Outlook / Hotmail' }).click();
+  await expect(dialog.getByLabel('ID do aplicativo Microsoft (client ID)')).toHaveCount(0);
+  await dialog.getByLabel('Email', { exact: true }).fill('felipe.vni@hotmail.com');
+  await dialog.getByRole('button', { name: 'Entrar com Microsoft' }).click();
+  await expect(dialog.getByRole('status')).toContainText('TEST-CODE');
+  await dialog.getByRole('button', { name: 'Copiar código' }).click();
+  await expect(dialog.getByRole('button', { name: 'Copiado', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('TEST-CODE');
+  await dialog.getByRole('button', { name: 'Cancelar conexão' }).click();
+});
+
+test('Outlook: sem client ID no .env.local, orienta a configuração e bloqueia o login', async ({ page }) => {
+  await page.route('**/api/mail/account', (route) => route.fulfill({ json: null }));
+  await page.route('**/api/mail/outlook/config', (route) => route.fulfill({ json: { configured: false } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Visualizar Vagas', exact: true }).click();
+  await page.getByRole('button', { name: /Conectar email/ }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Provedor').click();
+  await page.getByRole('option', { name: 'Outlook / Hotmail' }).click();
+  await dialog.getByLabel('Email', { exact: true }).fill('felipe.vni@hotmail.com');
+  await expect(dialog.getByRole('note')).toContainText('CV_STUDIO_OUTLOOK_CLIENT_ID');
+  await expect(dialog.getByRole('textbox', { name: /client ID/ })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Entrar com Microsoft' })).toBeDisabled();
+});

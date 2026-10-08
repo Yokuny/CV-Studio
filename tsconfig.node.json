@@ -9,7 +9,16 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
     "strict": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["./apps/web/src/*"] }
   },
-  "include": ["vite.config.ts", "server", "scripts", "tests", "playwright.config.ts"]
+  "include": [
+    "apps/web/vite.config.ts",
+    "apps/api",
+    "packages/core",
+    "tests",
+    "playwright.config.ts",
+    "vitest.config.ts"
+  ]
 }

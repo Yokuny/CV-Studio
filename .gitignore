@@ -8,3 +8,10 @@ tmp/
 output/
 *.local
 *.tsbuildinfo
+
+# Local data: the SQLite file is versioned, the SMTP credentials never are.
+data/mail-account.json
+data/mail-account.json.*.tmp
+data/*.db-wal
+data/*.db-shm
+data/*.db-journal

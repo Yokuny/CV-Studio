@@ -1,11 +1,11 @@
 ---
 name: cv-studio
-description: Cria, adapta a uma vaga, revisa e versiona os currículos Markdown do CV Studio em content/cv (Felipe Rangel). Use para "nova versão do currículo", "adaptar o CV para esta vaga", "revisar o currículo", "atualizar o base", "preparar PDF", ou qualquer pedido sobre currículo, CV, candidatura ou descrição de vaga neste repositório.
+description: Cria, adapta a uma vaga, revisa e versiona os currículos Markdown do CV Studio em content/cv (Felipe Rangel), com o pitch de email de cada versão. Use para "nova versão do currículo", "adaptar o CV para esta vaga", "escrever o pitch", "revisar o currículo", "atualizar o base", "preparar PDF", ou qualquer pedido sobre currículo, CV, candidatura ou descrição de vaga neste repositório.
 ---
 
 # CV Studio
 
-Cada versão do currículo é um trio de arquivos em `content/cv/` e aparece como uma aba na interface (`pnpm run dev`). Você e a interface editam os mesmos arquivos: o que você grava aparece na aba aberta em instantes, e o que o usuário edita na aba é salvo automaticamente no disco. Antes de mexer em arquivos, leia `references/system.md` para entender o contrato. Para redigir ou revisar, leia `references/writing.md`.
+Cada versão do currículo é um trio de arquivos em `content/cv/`, mais o pitch de email `<slug>.pitch.md`, e aparece como uma aba na interface (`pnpm run dev`). Você e a interface editam os mesmos arquivos: o que você grava aparece na aba aberta em instantes, e o que o usuário edita na aba é salvo automaticamente no disco. Antes de mexer em arquivos, leia `references/system.md` para entender o contrato. Para redigir ou revisar, leia `references/writing.md`.
 
 ## Regras de fatos (sempre)
 
@@ -30,14 +30,19 @@ Cada versão do currículo é um trio de arquivos em `content/cv/` e aparece com
    - nos bullets, priorize evidências relevantes e use os termos da vaga apenas onde os fatos sustentam;
    - mantenha a cronologia reversa e as empresas, cargos e datas reais;
    - corte redundâncias sem apagar evidências importantes.
-5. **Validar:** `pnpm cv check <slug>` deve terminar sem erros. Corrija o que ele apontar.
-6. **Relatório ao usuário:** requisitos atendidos com evidência, lacunas, principais mudanças e arquivos alterados. Se o `pnpm run dev` estiver rodando, a aba já mostra a versão; sugira conferir a prévia A4.
-7. **Commit**, só dos arquivos da versão:
+5. **Pitch:** adapte `content/cv/<slug>.pitch.md` (o `new` já o copiou da origem). É texto puro, curto (3 a 5 parágrafos), enviado como corpo do email com o PDF anexo:
+   - mantenha `{{recrutadora}}`, `{{cargo}}`, `{{empresa}}` e `{{nome}}` em vez de escrever esses dados; a vaga os preenche no envio;
+   - use no máximo duas ou três evidências do currículo que respondem aos requisitos principais, com as mesmas regras de fatos;
+   - sem Markdown, HTML, emojis ou promessas;
+   - não altere `base.pitch.md` ao adaptar uma versão.
+6. **Validar:** `pnpm cv check <slug>` deve terminar sem erros. Corrija o que ele apontar.
+7. **Relatório ao usuário:** requisitos atendidos com evidência, lacunas, principais mudanças e arquivos alterados. Se o `pnpm run dev` estiver rodando, a aba já mostra a versão; sugira conferir a prévia A4.
+8. **Commit**, só dos arquivos da versão:
    ```sh
-   git add content/cv/<slug>.md content/cv/<slug>.layout.json content/cv/<slug>.meta.json
+   git add content/cv/<slug>.md content/cv/<slug>.layout.json content/cv/<slug>.meta.json content/cv/<slug>.pitch.md
    git commit -m "cv(<slug>): <resumo curto da adaptação>"
    ```
-   Nunca use `git add .`, `-A`, `--amend` nem `push`. Não inclua outros arquivos nem envie nada a recrutadores. Se o usuário pedir para não commitar, pare no passo 6.
+   Nunca use `git add .`, `-A`, `--amend` nem `push`. Não inclua outros arquivos (nem `data/`) e não envie nada a recrutadores: o envio é feito pelo usuário na aba Vagas. Se o `new` avisou que o limite de 20 pitches apagou o pitch de outra versão, informe o usuário; a remoção aparece no `git status` e ele decide se a commita. Se o usuário pedir para não commitar, pare no passo 7.
 
 ## Fluxo: revisar
 
@@ -51,7 +56,7 @@ Leia a versão pedida e o `base.md`. Avalie:
 
 Havendo vaga, compare cada exigência com evidências concretas. Não dê pontuação ATS sem método verificável e não prometa aprovação em triagens. Priorize os achados que mudam a compreensão ou a credibilidade da candidatura e sugira redações concretas.
 
-Edite só se o pedido incluir correções. Nesse caso, valide com `pnpm cv check` e faça commit como no passo 7, com a mensagem `cv(<slug>): revisar <tema>`.
+Edite só se o pedido incluir correções. Nesse caso, valide com `pnpm cv check` e faça commit como no passo 8, com a mensagem `cv(<slug>): revisar <tema>`.
 
 ## Fluxo: atualizar o currículo base
 
@@ -59,7 +64,7 @@ Só quando o usuário pedir explicitamente e trouxer os fatos novos. Edite `cont
 
 ## Diagramação e PDF
 
-- A diagramação (fontes, cores, margens, espaçamentos e alinhamentos) fica em `<slug>.layout.json` e é ajustada pela interface. Mantenha o layout copiado da origem. Altere tokens só a pedido, dentro das faixas de `src/lib/model.ts` (`pnpm cv check` valida).
+- A diagramação (fontes, cores, margens, espaçamentos e alinhamentos) fica em `<slug>.layout.json` e é ajustada pela interface. Mantenha o layout copiado da origem. Altere tokens só a pedido, dentro das faixas de `packages/core/src/model.ts` (`pnpm cv check` valida).
 - Não reduza fonte ou margens para esconder texto ou forçar uma página.
 - O PDF sai pelo botão **Export** (impressão do navegador, A4, escala 100%, sem cabeçalhos/rodapés), com texto selecionável. Não gere PDF por screenshot.
 - Para revisão visual, peça ao usuário para abrir `pnpm run dev`. A contagem de páginas da interface é uma estimativa, e a impressão é a referência.
