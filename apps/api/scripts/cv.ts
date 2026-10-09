@@ -1,12 +1,11 @@
-// CLI used by the cv-studio skill: `pnpm cv list | new | check | pdf | job`. It shares the rules of the local API.
-import { execFileSync } from 'node:child_process';
+// CLI used by the cv-studio skill: `pnpm cv init | list | new | check | pdf | job`. It shares the rules of the local API.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { type Job, type JobInput, jobStatusLabels, jobTitle, parseJob } from '@cv-studio/core/jobs';
 import { mailConnected } from '@cv-studio/core/mail';
-import { slugify } from '@cv-studio/core/model';
-import { pitchLimit } from '@cv-studio/core/pitch';
+import { defaultLayout, slugify, starterMarkdown } from '@cv-studio/core/model';
+import { defaultPitch, pitchLimit } from '@cv-studio/core/pitch';
 import { ApplicationError, composeEmail, printVersion, sendApplication } from '../src/applications';
 import { checkVersions } from '../src/check';
 import { openDatabase } from '../src/db';
@@ -19,7 +18,8 @@ const root = contentRoot;
 const files = resumeFiles(root);
 const pdfRoot = path.join(repoRoot, 'output/pdf');
 const usage = `Uso:
-  pnpm cv list                                   Lista versões e status no Git
+  pnpm cv init [--file <curriculo.md>]           Cria o currículo base (modelo vazio ou o Markdown informado)
+  pnpm cv list                                   Lista as versões
   pnpm cv new <slug> --name "<nome>" [--from base]  Cria a versão (e o pitch) copiando a origem
   pnpm cv check [slug]                           Valida Markdown, layout, meta e pitch
   pnpm cv pdf <slug> [--check]                   Gera output/pdf/<slug>.pdf com o layout da versão
@@ -30,23 +30,6 @@ const usage = `Uso:
   pnpm cv job update <id> [os mesmos campos]     Altera os campos da vaga
   pnpm cv job preview <id>                       Mostra o email como será enviado e gera o PDF
   pnpm cv job send <id> --yes                    Envia o email com o PDF (sem --yes, só mostra a prévia)`;
-
-function gitStatus() {
-  try {
-    const output = execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--', 'content/cv'], {
-      cwd: path.dirname(path.dirname(root)),
-      encoding: 'utf8',
-    });
-    return new Map(
-      output
-        .split('\n')
-        .filter(Boolean)
-        .map((line) => [path.basename(line.slice(3)), line.slice(0, 2)]),
-    );
-  } catch {
-    return new Map<string, string>();
-  }
-}
 
 /** Prints a version to output/pdf (ignored by Git) and reports its pages and layout problems. */
 async function printToFile(id: string) {
@@ -207,16 +190,29 @@ async function main() {
       source: { type: 'string' },
       subject: { type: 'string' },
       'notes-file': { type: 'string' },
+      file: { type: 'string' },
     },
   });
+  if (command === 'init') {
+    if (await files.find('base')) {
+      console.error('content/cv/base.md já existe; edite-o em vez de recriar.');
+      return 1;
+    }
+    const markdown = values.file ? await fs.readFile(values.file, 'utf8') : starterMarkdown;
+    await fs.mkdir(root, { recursive: true });
+    await files.write({ id: 'base', name: 'Currículo base', markdown, layout: defaultLayout });
+    if (!(await files.readPitch('base'))) await files.writePitch('base', defaultPitch);
+    console.log(
+      `Criado content/cv/base.md (+ .layout.json, .meta.json, .pitch.md)${values.file ? ` a partir de ${values.file}` : ' com o modelo vazio'}. Esses arquivos ficam só nesta máquina (fora do Git).`,
+    );
+    return 0;
+  }
   if (command === 'list') {
-    const status = gitStatus();
-    for (const id of (await files.ids()).sort((a, b) => (a === 'base' ? -1 : b === 'base' ? 1 : a.localeCompare(b)))) {
+    const ids = await files.ids().catch((): string[] => []);
+    if (!ids.includes('base')) console.log('Sem currículo base: rode `pnpm cv init` para começar.');
+    for (const id of ids.sort((a, b) => (a === 'base' ? -1 : b === 'base' ? 1 : a.localeCompare(b)))) {
       const { name } = await files.load(id);
-      const changes = ['md', 'layout.json', 'meta.json', 'pitch.md']
-        .map((ext) => status.get(`${id}.${ext}`)?.trim())
-        .filter(Boolean);
-      console.log(`${id.padEnd(40)} ${name}${changes.length ? `  [git: ${[...new Set(changes)].join(',')}]` : ''}`);
+      console.log(`${id.padEnd(40)} ${name}`);
     }
     return 0;
   }
@@ -225,6 +221,14 @@ async function main() {
     const name = values.name ?? slug;
     if (!slug || slug !== slugify(slug)) {
       console.error(`Informe um slug em minúsculas com hífens (sugestão: ${slugify(name ?? '') || 'nome-da-vaga'}).`);
+      return 1;
+    }
+    if (!(await files.find(values.from))) {
+      console.error(
+        values.from === 'base'
+          ? 'Sem content/cv/base.md: rode `pnpm cv init` antes de criar versões.'
+          : `A versão "${values.from}" não foi encontrada em content/cv.`,
+      );
       return 1;
     }
     const resume = await files.copy(values.from, slug, name);

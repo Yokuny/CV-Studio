@@ -73,10 +73,8 @@ function localApi(): Plugin {
 
 async function loadApi(server: ViteDevServer): Promise<Api> {
   const { createApi } = (await server.ssrLoadModule(path.join(apiRoot, 'app.ts'))) as typeof import('../api/src/app');
-  const { dataRoot } = (await server.ssrLoadModule(
-    path.join(apiRoot, 'paths.ts'),
-  )) as typeof import('../api/src/paths');
-  return createApi({ contentRoot, dataRoot });
+  const paths = (await server.ssrLoadModule(path.join(apiRoot, 'paths.ts'))) as typeof import('../api/src/paths');
+  return createApi({ contentRoot: paths.contentRoot, dataRoot: paths.dataRoot });
 }
 
 export default defineConfig({

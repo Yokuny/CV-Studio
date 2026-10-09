@@ -2,11 +2,11 @@
 
 ## 001 — Markdown como fonte
 
-**Contexto:** manter fatos profissionais em Git e permitir personalização futura por IA.
+**Contexto:** manter fatos profissionais em arquivos de texto e permitir personalização por IA.
 
 **Decisão:** Markdown GFM em `content/cv`, renderizado por `react-markdown` sem HTML bruto. Um arquivo por variante, com base preservada. JSON separado guarda layout e nome da versão.
 
-**Consequência:** conteúdo não é duplicado em JSX. O histórico depende de commits; o build estático precisa ser reconstruído após alterações.
+**Consequência:** conteúdo não é duplicado em JSX. O build estático precisa ser reconstruído após alterações. Desde a ADR 012, os arquivos são locais e não têm histórico no Git.
 
 ## 002 — Edição local e publicação estática
 
@@ -28,9 +28,9 @@
 
 **Contexto:** adaptação por vaga será feita com IA.
 
-**Decisão:** uma skill do projeto, `cv-studio` (`.agents/skills`, com symlink em `.claude/skills`), substitui `cv-tailor`, `cv-review` e o pacote genérico `cv-resume-builder`, que contradizia as regras do projeto (estimar números, evitar tabelas). A skill usa o CLI `pnpm cv` (`list`, `new`, `check`), que compartilha `apps/api/src/repository.ts` com a API, e faz commit apenas dos arquivos da versão (`cv(<slug>): …`), sem push. A interface não possui aba Vaga, não gera prompts e não chama modelos nem exige chaves.
+**Decisão:** uma skill do projeto, `cv-studio` (`.agents/skills`, com symlink em `.claude/skills`), substitui `cv-tailor`, `cv-review` e o pacote genérico `cv-resume-builder`, que contradizia as regras do projeto (estimar números, evitar tabelas). A skill usa o CLI `pnpm cv` (`list`, `new`, `check`), que compartilha `apps/api/src/repository.ts` com a API, e, até a ADR 012, fazia commit apenas dos arquivos da versão (`cv(<slug>): …`), sem push. A interface não possui aba Vaga, não gera prompts e não chama modelos nem exige chaves.
 
-**Consequência:** fatos continuam sob revisão do candidato; cada adaptação vira um commit isolado e revisável no Git.
+**Consequência:** fatos continuam sob revisão do candidato. Cada adaptação virava um commit isolado; a ADR 012 retirou os commits.
 
 ## 005 — Monorepo pnpm com API Express
 
@@ -40,19 +40,19 @@
 
 **Consequência:** `pnpm run dev` sobe um único processo em http://localhost:5173. O `vite preview` não tem API, então o build estático continua sem gravação.
 
-## 006 — Vagas em SQLite nativo versionado
+## 006 — Vagas em SQLite nativo
 
 **Contexto:** registrar vagas, recrutadoras e envios sem depender de um banco rodando.
 
-**Decisão:** `node:sqlite` (Node 24+) em `data/cv-studio.db`, com migrações por `PRAGMA user_version` e journal DELETE para o arquivo ficar íntegro e único quando commitado. Tabelas `jobs` e `emails` (histórico, inclusive falhas). Exportação/importação CSV (UTF-8 com BOM, cabeçalho em `jobCsvColumns`) para planilhas e backup. Testes e2e usam `CV_STUDIO_DATA_DIR` para não tocar no banco real.
+**Decisão:** `node:sqlite` (Node 24+) em `data/cv-studio.db`, com migrações por `PRAGMA user_version` e journal DELETE para o arquivo ficar íntegro e único (copiável como backup). Tabelas `jobs` e `emails` (histórico, inclusive falhas). Exportação/importação CSV (UTF-8 com BOM, cabeçalho em `jobCsvColumns`) para planilhas e backup. Testes e2e usam `CV_STUDIO_DATA_DIR` para não tocar no banco real.
 
-**Consequência:** o banco é binário no Git (sem diff legível; use o CSV para revisar). Contém emails de recrutadoras: considere a visibilidade do repositório.
+**Consequência:** o banco é binário (sem diff legível; use o CSV para revisar). Era versionado; desde a ADR 012 fica fora do Git, porque contém emails de recrutadoras e é de cada usuário.
 
 ## 007 — Pitch por versão e envio SMTP com PDF
 
 **Contexto:** cada candidatura leva um pitch personalizado e o currículo da versão.
 
-**Decisão:** o pitch é um arquivo `content/cv/<slug>.pitch.md` (texto puro, variáveis `{{empresa}}`, `{{cargo}}`, `{{recrutadora}}`, `{{nome}}`), editado na aba Pitch com autosave e conflito próprios e adaptado pela skill. Sem arquivo, a versão usa `base.pitch.md`. Até 20 pitches de versão: gravar um novo além disso apaga o mais antigo por mtime (o Git guarda o histórico). O pitch não entra na revisão do currículo. O envio usa nodemailer com senha de app Gmail (465/SSL) ou OAuth2 Outlook (587/STARTTLS obrigatório), com as credenciais em `data/mail-account.json` (0600, fora do Git, nunca devolvidas à UI). O anexo é gerado pela API com o Chromium do Playwright, abrindo `/?print=<slug>` e imprimindo com `page.pdf` e o mesmo `@page` A4. O envio é bloqueado enquanto houver variável sem valor, variável desconhecida ou o trecho de exemplo do pitch.
+**Decisão:** o pitch é um arquivo `content/cv/<slug>.pitch.md` (texto puro, variáveis `{{empresa}}`, `{{cargo}}`, `{{recrutadora}}`, `{{nome}}`), editado na aba Pitch com autosave e conflito próprios e adaptado pela skill. Sem arquivo, a versão usa `base.pitch.md`. Até 20 pitches de versão: gravar um novo além disso apaga o mais antigo por mtime (sem histórico desde a ADR 012). O pitch não entra na revisão do currículo. O envio usa nodemailer com senha de app Gmail (465/SSL) ou OAuth2 Outlook (587/STARTTLS obrigatório), com as credenciais em `data/mail-account.json` (0600, fora do Git, nunca devolvidas à UI). O anexo é gerado pela API com o Chromium do Playwright, abrindo `/?print=<slug>` e imprimindo com `page.pdf` e o mesmo `@page` A4. O envio é bloqueado enquanto houver variável sem valor, variável desconhecida ou o trecho de exemplo do pitch.
 
 **Consequência:** gerar o anexo exige `pnpm setup:pdf` uma vez (desde a ADR 010, não exige mais a UI de dev aberta). Agentes não enviavam emails; a ADR 011 permite o envio pelo CLI com confirmação explícita.
 
@@ -88,8 +88,10 @@
 
 **Consequência:** a candidatura funciona pela UI ou só pelo terminal, com a mesma prévia e as mesmas regras de bloqueio. O envio por agente depende da disciplina da skill e do `--yes`; o histórico registra cada tentativa. A renovação de tokens Outlook é serializada por processo; CLI e UI enviando ao mesmo tempo podem renovar duas vezes, o que é aceito pelo uso pessoal.
 
-## Fonte e pontos a confirmar
+## 012 — Currículos, pitches e vagas locais, fora do Git
 
-Transcrição de `felipe_rangel_pt_br.pdf`, corrigindo apenas artefatos de extração (quebras e datas coladas a títulos). Links LinkedIn/GitHub vieram das anotações do PDF. “Mais de 5 anos”, atuações simultâneas e status de formação foram preservados sem inferências.
+**Contexto:** o projeto passou a ter contribuidores e outras pessoas usando o mesmo repositório. Com `content/cv` e `data/cv-studio.db` versionados, cada clone trazia o currículo, os pitches e as vagas do mantenedor, e cada usuário commitaria os seus, com conflito garantido no banco binário e exposição de dados pessoais.
 
-A skill externa `CRM/.claude/skills/grill-with-docs/SKILL.md` pede `/grilling` com `/domain-modeling`. Essas dependências não foram encontradas no CRM nem nas skills locais consultadas. Registramos ADRs e glossário e apresentamos uma pergunta sobre organização de versões; não declaramos execução completa dessas dependências.
+**Decisão:** `content/cv/*` (exceto `.gitkeep`) e `data/` entram no `.gitignore` e saem do índice. O repositório guarda só código, skill e documentação. Um clone novo começa vazio: `pnpm cv init [--file <md>]` cria o base a partir de `starterMarkdown` (`packages/core/src/model.ts`) ou de um Markdown do usuário, e na interface a primeira versão criada num `content/cv` vazio vira `base`. A API cria `content/cv` se faltar. A skill não faz mais commit; ganhou o fluxo "criar o base" e perdeu os fatos fixos do currículo do mantenedor, trocados por regras genéricas. `pnpm cv list` deixou de mostrar status do Git. `CV_STUDIO_CONTENT_DIR`, como `CV_STUDIO_DATA_DIR`, troca a pasta, para os testes do CLI rodarem sem os arquivos do usuário.
+
+**Consequência:** cada pessoa usa o projeto da mesma forma, sem puxar nem subir currículos. Não há histórico das versões: fechar uma aba ou o limite de 20 pitches apaga de vez, e o backup (copiar `content/cv` e `data/cv-studio.db`, ou exportar o CSV de vagas) é do usuário. Os arquivos já commitados continuam no histórico do Git até serem reescritos. O e2e ainda usa o `content/cv` local e o currículo do mantenedor.

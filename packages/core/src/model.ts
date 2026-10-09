@@ -187,6 +187,42 @@ export const defaultLayout: Layout = {
   textColor: '#333336',
   paperColor: '#ffffff',
 };
+/**
+ * Skeleton of a new base resume (`pnpm cv init` and the empty workspace). Resumes are personal
+ * and never versioned, so each user starts from this and fills in their own facts.
+ */
+export const starterMarkdown = `# Seu nome
+
+Cargo pretendido · principais tecnologias
+
+[seu@email.com](mailto:seu@email.com) · [LinkedIn](https://www.linkedin.com/in/seu-perfil) · Cidade, UF
+
+## Resumo profissional
+
+Escreva aqui um resumo de 2 a 4 linhas sobre sua experiência.
+
+## Competências técnicas
+
+| Área | Tecnologias |
+| --- | --- |
+| Área | Tecnologias que você usa |
+
+## Experiência profissional
+
+### Cargo — Empresa
+
+**Mmm/AAAA – Presente**
+
+- Uma realização concreta, com o resultado quando houver.
+
+**Stack:** tecnologias usadas
+
+## Formação acadêmica
+
+### Curso — Instituição
+
+**AAAA – AAAA**
+`;
 export const layoutRanges = {
   fontSize: [8, 14, 0.5],
   lineHeight: [1.1, 2, 0.05],

@@ -55,6 +55,6 @@ Checklist:
 
 - **Conteúdo:** resumo específico; bullets como realizações e não tarefas; métricas iguais à fonte; emprego distinto de projeto.
 - **Consistência:** datas no formato `Mmm/AAAA`, separador ` – `, cargos no formato `### Cargo — Empresa`, linha `**Stack:**` em cada experiência.
-- **Fatos sensíveis:** "mais de 5 anos", UFES e 6,4 → 41,8 (550%) preservados ou sinalizados (veja SKILL.md).
+- **Fatos sensíveis:** anos de experiência, status de formação, atuações paralelas e métricas iguais ao base, ou sinalizados no relatório (veja SKILL.md).
 - **Formato:** um H1, `pnpm cv check` sem erros, e nada de HTML, emoji ou estilo inline.
 - **Visual (com `pnpm run dev`):** margens, quebras de página, cabeçalhos junto da experiência, tabelas e links na prévia A4. Não reduza fonte ou margens só para caber em uma página.

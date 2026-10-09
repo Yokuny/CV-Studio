@@ -9,9 +9,8 @@ output/
 *.local
 *.tsbuildinfo
 
-# Local data: the SQLite file is versioned, the SMTP credentials never are.
-data/mail-account.json
-data/mail-account.json.*.tmp
-data/*.db-wal
-data/*.db-shm
-data/*.db-journal
+# Personal files stay on each machine: every user keeps their own resumes, pitches,
+# jobs database and email credentials. Only the empty content/cv folder is shared.
+content/cv/*
+!content/cv/.gitkeep
+data/

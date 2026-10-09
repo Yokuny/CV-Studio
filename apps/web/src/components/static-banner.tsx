@@ -8,9 +8,9 @@ export function StaticBanner() {
     <div className="static-banner no-print">
       Modo de prévia: rascunhos ficam neste navegador.{' '}
       <button type="button" onClick={exportSources}>
-        Baixar arquivos para o Git
+        Baixar arquivos
       </button>{' '}
-      ou rode <code>pnpm run dev</code> para salvar no repositório.
+      ou rode <code>pnpm run dev</code> para salvar em content/cv.
     </div>
   );
 }

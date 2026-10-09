@@ -22,6 +22,7 @@ export function NewVersionDialog() {
   const sourceName = useResumes((s) => (selectHasVersion(s) ? selectCurrent(s).name : undefined));
   const onCreate = useResumes((s) => s.create);
   const writable = useResumes((s) => s.writable);
+  const firstBase = useResumes((s) => s.writable && !selectHasVersion(s));
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   return (
@@ -32,7 +33,9 @@ export function NewVersionDialog() {
           <DialogDescription>
             {sourceName !== undefined
               ? `Comece com uma cópia de “${sourceName}”. O currículo original permanece disponível.`
-              : 'Crie um currículo e escreva seu conteúdo em Markdown.'}
+              : firstBase
+                ? 'Crie seu currículo base a partir do modelo e preencha com os seus dados. Ele fica só neste computador.'
+                : 'Crie um currículo e escreva seu conteúdo em Markdown.'}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -60,7 +63,8 @@ export function NewVersionDialog() {
             onChange={(e) => setName(e.target.value)}
           />
           <p className="small-note mt-3">
-            {writable ? 'Grava agora' : 'Arquivo ao baixar'}: content/cv/{slugify(name) || 'nome-da-vaga'}.md
+            {writable ? 'Grava agora' : 'Arquivo ao baixar'}: content/cv/
+            {firstBase ? 'base' : slugify(name) || 'nome-da-vaga'}.md
           </p>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

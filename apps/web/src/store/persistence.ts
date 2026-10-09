@@ -52,7 +52,7 @@ export const resumeStorage: PersistStorage<PersistedResumes> = {
       write(hiddenKey, state.hidden);
       write(draftKey, state.drafts);
     } catch {
-      notify('O navegador não conseguiu guardar o rascunho. Salve no repositório ou baixe o Markdown.');
+      notify('O navegador não conseguiu guardar o rascunho. Salve em content/cv ou baixe o Markdown.');
     }
   },
   removeItem: () => {

@@ -57,7 +57,8 @@ export function checkPitch(text: string, file: string): Issue[] {
 
 /** Validates the files of one version, or of every version in content/cv when no id is given. */
 export async function checkVersions(root: string, only?: string): Promise<Issue[]> {
-  const entries = await fs.readdir(root);
+  // Hidden files such as .gitkeep are not versions.
+  const entries = (await fs.readdir(root)).filter((file) => !file.startsWith('.'));
   const issues: Issue[] = [];
   const ids = new Set<string>();
   for (const file of entries) {

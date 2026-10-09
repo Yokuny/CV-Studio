@@ -7,23 +7,59 @@ import { openDatabase } from '../apps/api/src/db';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 let dataDir: string;
-// Runs `pnpm cv` against the repository's content/cv and a temporary jobs database.
+let contentDir: string;
+// Runs `pnpm cv` against a temporary content/cv and jobs database: the user's files are personal and ignored by Git.
 const cv = (...args: string[]) =>
   spawnSync(path.join(repoRoot, 'node_modules/.bin/tsx'), ['apps/api/scripts/cv.ts', ...args], {
     cwd: repoRoot,
     encoding: 'utf8',
-    env: { ...process.env, CV_STUDIO_DATA_DIR: dataDir },
+    env: { ...process.env, CV_STUDIO_DATA_DIR: dataDir, CV_STUDIO_CONTENT_DIR: contentDir },
     timeout: 60000,
   });
 
 beforeEach(async () => {
   dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-cli-'));
+  contentDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-content-'));
 });
 afterEach(async () => {
   await fs.rm(dataDir, { recursive: true, force: true });
+  await fs.rm(contentDir, { recursive: true, force: true });
+});
+
+describe('pnpm cv init', () => {
+  it('cria o base a partir do modelo uma única vez', async () => {
+    expect(cv('list').stdout).toMatch(/pnpm cv init/);
+    expect(cv('new', 'backend', '--name', 'Backend').stderr).toMatch(/pnpm cv init/);
+    expect(cv('init').status).toBe(0);
+    expect((await fs.readdir(contentDir)).sort()).toEqual([
+      'base.layout.json',
+      'base.md',
+      'base.meta.json',
+      'base.pitch.md',
+    ]);
+    expect(cv('check', 'base').status).toBe(0);
+    expect(cv('init').stderr).toMatch(/já existe/);
+    expect(cv('new', 'backend', '--name', 'Backend').status).toBe(0);
+    expect(cv('list').stdout).toMatch(/backend +Backend/);
+  });
+
+  it('importa um Markdown existente', async () => {
+    const file = path.join(contentDir, '..', `${path.basename(contentDir)}-cv.md`);
+    await fs.writeFile(file, '# Ana Souza\n\nBackend\n');
+    try {
+      expect(cv('init', '--file', file).status).toBe(0);
+      expect(await fs.readFile(path.join(contentDir, 'base.md'), 'utf8')).toBe('# Ana Souza\n\nBackend\n');
+    } finally {
+      await fs.rm(file, { force: true });
+    }
+  });
 });
 
 describe('pnpm cv job', () => {
+  beforeEach(() => {
+    cv('init');
+  });
+
   it('cadastra a vaga como rascunho e valida os campos', () => {
     const missing = cv('job', 'add', '--resume', 'base', '--company', 'Acme');
     expect(missing.status).toBe(1);

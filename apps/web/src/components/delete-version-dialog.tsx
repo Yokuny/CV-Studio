@@ -45,7 +45,7 @@ export function DeleteVersionDialog() {
           <DialogDescription>
             Fechar a aba “{version?.name}” exclui esta versão e suas alterações em rascunho.
             {writable
-              ? ' Os arquivos Markdown, layout e metadados também serão removidos de content/cv. Versões já registradas em commits continuam no histórico do Git.'
+              ? ' Os arquivos Markdown, layout, metadados e pitch também serão removidos de content/cv. Eles existem só neste computador, então não há como recuperá-los depois.'
               : ' Nesta prévia, a exclusão vale apenas neste navegador. Os arquivos do projeto não serão removidos.'}
           </DialogDescription>
         </DialogHeader>

@@ -1,6 +1,6 @@
 # CV Studio
 
-Seu currículo em Markdown, com diagramação ajustável e versões por vaga no Git.
+Seu currículo em Markdown, com diagramação ajustável e versões por vaga. Cada pessoa clona o projeto e mantém os próprios currículos, pitches e vagas só no seu computador: nada disso vai para o Git.
 
 ## Como funciona
 
@@ -24,12 +24,15 @@ Node.js 24+ (usa o SQLite nativo do Node) e pnpm 11.11.0.
 ```sh
 pnpm install
 pnpm setup:pdf   # uma vez: baixa o Chromium que gera o PDF anexado aos emails
+pnpm cv init     # uma vez: cria content/cv/base.md a partir do modelo (ou --file meu-cv.md)
 pnpm run dev     # interface + API local Express, ambas em http://localhost:5173
 ```
 
+Depois do `pnpm cv init`, preencha `content/cv/base.md` com os seus dados, pela interface ou pedindo à IA (“transcreva meu currículo [PDF/texto] para o base”). Sem o init, a interface abre vazia e a primeira versão criada vira o `base.md`.
+
 Abra http://localhost:5173. Cada aba é um arquivo em `content/cv`. **+ Nova Versão** copia o currículo aberto e grava os arquivos na hora. As edições de conteúdo e design são salvas automaticamente (Save força a gravação). Alterações feitas fora da interface, por você, pelo `pnpm cv` ou pela IA, aparecem nas abas sem recarregar a página. Se a aba tinha uma edição ainda não gravada, um aviso oferece **Recarregar do arquivo**, **Baixar meu Markdown** ou **Manter minha versão**.
 
-As versões aparecem em abas abaixo do header. **+ Nova Versão** fica no final e abre a cópia em uma nova aba. O **×**, o botão do meio do mouse, três cliques rápidos na aba ou a tecla **Delete** abrem a confirmação: **fechar significa excluir**. Confirmar remove a versão e seus rascunhos; no modo local, remove também seus três arquivos de `content/cv`. Exclusões aparecem no Git para revisão e commit. A interface permite fechar todas as abas e criar um novo currículo vazio.
+As versões aparecem em abas abaixo do header. **+ Nova Versão** fica no final e abre a cópia em uma nova aba. O **×**, o botão do meio do mouse, três cliques rápidos na aba ou a tecla **Delete** abrem a confirmação: **fechar significa excluir**. Confirmar remove a versão e seus rascunhos; no modo local, remove também seus arquivos de `content/cv`, sem cópia no Git: faça backup do que quiser guardar. A interface permite fechar todas as abas e criar um novo currículo vazio.
 
 ## Arquivos
 
@@ -38,16 +41,16 @@ As versões aparecem em abas abaixo do header. **+ Nova Versão** fica no final 
 apps/web/                # interface (Vite + React)
 apps/api/                # API local Express e CLI `pnpm cv`
 packages/core/           # modelo e regras compartilhados
-content/cv/
-  base.md                # conteúdo fonte extraído do PDF fornecido
+content/cv/              # seus currículos e pitches (fora do Git; só .gitkeep é versionado)
+  base.md                # currículo base: a fonte dos seus fatos (`pnpm cv init`)
   base.layout.json       # tokens de design
   base.pitch.md          # pitch base do email
   <slug>.md              # versões criadas por vaga
   <slug>.layout.json
   <slug>.meta.json       # nome da versão
   <slug>.pitch.md        # pitch da versão (até 20; o mais antigo é apagado)
-data/
-  cv-studio.db           # vagas e histórico de envios (SQLite, versionado)
+data/                    # fora do Git; criada pela API
+  cv-studio.db           # vagas e histórico de envios (SQLite local)
   mail-account.json      # senha SMTP ou tokens Microsoft (0600, fora do Git)
 docs/
   email-gmail.md         # guia: conectar Gmail com senha de app
@@ -55,7 +58,8 @@ docs/
 ```
 
 ```sh
-pnpm cv list                                        # versões e status no Git
+pnpm cv init [--file meu-cv.md]                     # cria o base (modelo vazio ou seu Markdown)
+pnpm cv list                                        # versões
 pnpm cv new backend-node --name "Backend Node"      # cria a versão a partir do base
 pnpm cv check backend-node                          # valida Markdown, layout e meta
 pnpm cv pdf backend-node --check                    # gera output/pdf/backend-node.pdf com o layout da versão
@@ -77,7 +81,7 @@ Sem abrir a interface, `pnpm cv pdf <slug>` gera `output/pdf/<slug>.pdf` (fora d
 
 ## Pitch
 
-A aba **Pitch** edita o texto puro enviado no corpo do email da versão aberta. Use `{{empresa}}`, `{{cargo}}`, `{{recrutadora}}` e `{{nome}}`: cada vaga os preenche no envio. Uma versão sem pitch próprio usa o `base.pitch.md`; ao editar, ela ganha `content/cv/<slug>.pitch.md` (autosave, como o currículo). **+ Nova Versão** e `pnpm cv new` copiam o pitch da origem. Cabem 20 pitches de versão: o 21º apaga o mais antigo, que volta a usar o base (o Git guarda o histórico).
+A aba **Pitch** edita o texto puro enviado no corpo do email da versão aberta. Use `{{empresa}}`, `{{cargo}}`, `{{recrutadora}}` e `{{nome}}`: cada vaga os preenche no envio. Uma versão sem pitch próprio usa o `base.pitch.md`; ao editar, ela ganha `content/cv/<slug>.pitch.md` (autosave, como o currículo). **+ Nova Versão** e `pnpm cv new` copiam o pitch da origem. Cabem 20 pitches de versão: o 21º apaga o mais antigo, que volta a usar o base.
 
 ## Vagas e email
 
@@ -92,26 +96,28 @@ Para enviar, conecte sua conta em **Vagas → Conectar email**. Cada pessoa usa 
 
 Em cada vaga, ✈ mostra o email exatamente como será enviado: assunto e pitch preenchidos e o PDF da versão anexado. O envio fica bloqueado enquanto faltar dado da vaga ou o pitch tiver variáveis desconhecidas. Cada envio, inclusive falhas, fica no histórico da vaga; o primeiro marca a vaga como **Enviado** com a data.
 
-Credenciais ficam em `data/mail-account.json`, fora do Git, e nunca voltam ao navegador. O banco de vagas é versionado e contém emails de recrutadoras; considere a visibilidade do repositório.
+Credenciais ficam em `data/mail-account.json` e nunca voltam ao navegador. Como todo o `data/`, o arquivo e o banco de vagas (com os emails de recrutadoras) ficam fora do Git.
 
 ## IA
 
-A skill `cv-studio` (`.agents/skills/cv-studio`, lida pelo Codex; `.claude/skills/cv-studio` é um symlink para o Claude Code) conhece o contrato de arquivos, o CLI e a interface. Ela cria a versão com `pnpm cv new`, adapta o Markdown e o pitch preservando os fatos do base, valida com `pnpm cv check`, relata evidências e lacunas e **faz commit apenas dos arquivos da versão** (`cv(<slug>): …`), sem push. Com `pnpm run dev` aberto, a nova aba aparece enquanto a IA trabalha. Na candidatura completa, ela também cadastra a vaga e mostra a prévia do email; **só envia depois da sua confirmação explícita** daquele envio. Ela nunca edita `data/` direto nem lê suas credenciais, e conectar a conta de email é sempre com você, na interface.
+A skill `cv-studio` (`.agents/skills/cv-studio`, lida pelo Codex; `.claude/skills/cv-studio` é um symlink para o Claude Code) conhece o contrato de arquivos, o CLI e a interface. Ela cria a versão com `pnpm cv new`, adapta o Markdown e o pitch preservando os fatos do base, valida com `pnpm cv check` e relata evidências e lacunas. Ela não faz commit: currículos e vagas são arquivos locais. Com `pnpm run dev` aberto, a nova aba aparece enquanto a IA trabalha. Na candidatura completa, ela também cadastra a vaga e mostra a prévia do email; **só envia depois da sua confirmação explícita** daquele envio. Ela nunca edita `data/` direto nem lê suas credenciais, e conectar a conta de email é sempre com você, na interface.
 
 Exemplo: “Adapte o currículo para esta vaga backend Node.js/AWS/mensageria: […]. Explique os requisitos sem evidência.”
 
-## GitHub
+## Seus dados ficam locais
 
-A interface grava no checkout, mas não faz commit. A skill commita as versões que cria ou edita; alterações feitas só pela interface você registra assim:
+O repositório traz só o código, a skill e a documentação. Estes caminhos estão no `.gitignore`, então cada pessoa que clona o projeto começa sem currículos de ninguém e nunca sobe os seus:
 
-```sh
-git diff -- content/cv data/cv-studio.db
-git add content/cv data/cv-studio.db
-git commit -m "cv: adaptar versão para vaga backend"
-git push
-```
+| Caminho | Conteúdo |
+| --- | --- |
+| `content/cv/*` (exceto `.gitkeep`) | currículo base, versões, layouts, nomes e pitches |
+| `data/` | banco de vagas e envios, credenciais de email |
+| `output/` | PDFs gerados pelo CLI |
+| `.env.local` | client ID Microsoft do Outlook |
 
-O CV contém contatos pessoais; considere a visibilidade do repositório antes de publicar. O PDF original não foi copiado.
+A interface, o CLI e a skill gravam e apagam esses arquivos sem commit. Não há histórico no Git: para guardar ou levar a outro computador, copie `content/cv` e `data/cv-studio.db` (ou exporte as vagas em CSV pela aba Vagas). As credenciais de email não se copiam; conecte a conta de novo em cada máquina.
+
+Para contribuir com o projeto, faça commit só de código, testes e documentação. Os testes unitários e do CLI usam pastas temporárias (`CV_STUDIO_CONTENT_DIR`, `CV_STUDIO_DATA_DIR`) e não precisam dos seus arquivos. O e2e (`pnpm run test:e2e`) ainda edita e restaura o `content/cv` local e espera o currículo base do mantenedor.
 
 ## Build estático
 
@@ -120,7 +126,7 @@ pnpm run build
 pnpm run preview
 ```
 
-O build inclui versões existentes em `content/cv` naquele momento. Em site estático, edições são rascunhos locais; use **Baixar arquivos** para exportar `.md`, `.layout.json`, `.meta.json`, coloque em `content/cv` e reconstrua. Fechar abas neste modo oculta as versões apenas neste navegador, inclusive após recarregar; os arquivos do projeto permanecem intactos. A API de gravação só existe em `pnpm run dev` em localhost.
+O build inclui as versões existentes no seu `content/cv` naquele momento: não publique um build com o seu currículo sem querer. Em site estático, edições são rascunhos locais; use **Baixar arquivos** para exportar `.md`, `.layout.json`, `.meta.json`, coloque em `content/cv` e reconstrua. Fechar abas neste modo oculta as versões apenas neste navegador, inclusive após recarregar; os arquivos do projeto permanecem intactos. A API de gravação só existe em `pnpm run dev` em localhost.
 
 ## shadcn MCP
 

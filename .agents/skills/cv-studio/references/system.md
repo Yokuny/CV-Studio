@@ -2,6 +2,8 @@
 
 ## Arquivos de uma versão
 
+Tudo em `content/cv` é do usuário desta máquina e fica fora do Git (o `.gitignore` só deixa passar o `.gitkeep`). Um clone novo começa sem currículo: `pnpm cv init` cria o base.
+
 ```text
 content/cv/
   <slug>.md            # conteúdo (fonte única do texto)
@@ -13,7 +15,7 @@ content/cv/
 - **Slug:** `^[a-z0-9]+(?:-[a-z0-9]+)*$`, até 80 caracteres e sem acentos (`slugify` em `packages/core/src/model.ts`). Arquivos fora desse padrão (ex.: `base copy.md`) são ignorados pela interface e apontados por `pnpm cv check`.
 - **`.md`:** até 250000 caracteres.
 - **`.meta.json`:** só `name`, com 1 a 120 caracteres. O campo `job` foi aposentado; a interface o descarta ao salvar. Sem meta, a aba usa o slug, e o base usa "Currículo base".
-- **`.pitch.md`:** texto puro (sem Markdown nem HTML), até 20000 caracteres, enviado como corpo do email da candidatura. Variáveis preenchidas pela vaga no envio: `{{empresa}}`, `{{cargo}}`, `{{recrutadora}}` e `{{nome}}` (H1 do currículo). Outras variáveis são erro no `pnpm cv check`. Sem arquivo próprio, a versão usa `base.pitch.md`. **Limite de 20:** ao gravar um pitch novo além de 20 (sem contar o base), o mais antigo por data de modificação é apagado; a versão volta a usar o pitch base e o Git guarda o histórico.
+- **`.pitch.md`:** texto puro (sem Markdown nem HTML), até 20000 caracteres, enviado como corpo do email da candidatura. Variáveis preenchidas pela vaga no envio: `{{empresa}}`, `{{cargo}}`, `{{recrutadora}}` e `{{nome}}` (H1 do currículo). Outras variáveis são erro no `pnpm cv check`. Sem arquivo próprio, a versão usa `base.pitch.md`. **Limite de 20:** ao gravar um pitch novo além de 20 (sem contar o base), o mais antigo por data de modificação é apagado de vez; a versão volta a usar o pitch base.
 - **`.layout.json`:** se faltar ou for inválido, vale o layout padrão. Tokens e faixas estão em `packages/core/src/model.ts` (`defaultLayout`, `layoutRanges`, `fonts`, `elementColorGroups`, `elementFontGroups`). `blockAlignments` guarda o alinhamento de trechos por posição no Markdown, com o texto original em `source`. Se o trecho mudar, o alinhamento é descartado sem afetar outro texto.
 
 ## CLI (`pnpm cv`)
@@ -22,8 +24,9 @@ Usa as mesmas regras da API local (`apps/api/src/repository.ts`, `apps/api/src/c
 
 | Comando | Efeito |
 | --- | --- |
-| `pnpm cv list` | Lista as versões, nomes e status no Git |
-| `pnpm cv new <slug> --name "<nome>" [--from base]` | Copia `.md`, `.layout.json` e o pitch da origem (ou o base) e grava o meta; falha se o slug existir; avisa se o limite de 20 pitches apagou algum |
+| `pnpm cv init [--file <arquivo.md>]` | Cria `base.md`, `.layout.json`, `.meta.json` e `.pitch.md` a partir do modelo vazio ou do Markdown informado; recusa se o base existir |
+| `pnpm cv list` | Lista as versões e nomes; avisa quando falta o base |
+| `pnpm cv new <slug> --name "<nome>" [--from base]` | Copia `.md`, `.layout.json` e o pitch da origem (ou o base) e grava o meta; falha se o slug existir ou se a origem não existir; avisa se o limite de 20 pitches apagou algum |
 | `pnpm cv check [slug]` | Valida H1 único, ausência de HTML, layout, meta, pitch (variáveis) e nomes; exit ≠ 0 em erro |
 | `pnpm cv pdf <slug> [--check]` | Gera `output/pdf/<slug>.pdf` (fora do Git) com o layout da versão; informa páginas e avisos (texto passando da margem, item/linha de tabela maior que uma página). Com `--check`, exit ≠ 0 se houver aviso |
 | `pnpm cv job list` | Lista as vagas: id, cargo, empresa, status, versão e email |
@@ -59,17 +62,18 @@ Sem emojis decorativos, estilos inline ou instruções dentro do conteúdo.
   - arquivos novos abrem abas;
   - arquivos removidos fecham abas.
 - **Conflito.** Se o usuário tiver uma edição ainda não gravada e o arquivo mudar no disco, a aba mostra um aviso com **Recarregar do arquivo**, **Baixar meu Markdown** e **Manter minha versão**, e o autosave dessa aba pausa. Para evitar isso, grave quando o usuário não estiver editando a mesma aba, ou avise que você vai alterá-la.
-- **Fechar uma aba exclui** os arquivos da versão, inclusive o pitch (no modo local). Faça commit do que deve ficar no histórico.
+- **Fechar uma aba exclui** os arquivos da versão, inclusive o pitch (no modo local), sem cópia em lugar nenhum.
 - **Revisão (SHA-256).** A API recusa com 409 uma gravação feita sobre uma versão desatualizada. Suas edições diretas no disco não passam por essa checagem; a interface as detecta pela sincronização.
+- **Base ausente:** com `content/cv` vazio, a interface mostra o estado vazio e a primeira versão criada nela é gravada como `base`.
 - **Modo estático** (`pnpm run build`): sem gravação. Rascunhos ficam no `localStorage`, e "Download" exporta o trio para colocar em `content/cv`.
 
 ## Vagas e email
 
-A aba **Vagas** guarda as candidaturas em `data/cv-studio.db` (SQLite nativo do Node, versionado no Git) e envia o email por SMTP com o pitch da versão escolhida e o PDF dela anexado. A conta SMTP fica em `data/mail-account.json`, fora do Git. A skill altera vagas só pelo `pnpm cv job`; **nunca edita `data/` direto nem lê `mail-account.json`**. O envio acontece de duas formas: o usuário clica em **Enviar email** na prévia ✈ da aba Vagas, ou a skill roda `pnpm cv job send <id> --yes` depois de mostrar a prévia (`pnpm cv job preview`) e receber a confirmação explícita daquele envio. Vagas criadas pelo CLI chegam à interface aberta pelo evento `jobs` de `/api/events`. Conectar a conta de email (Gmail com senha de app, Outlook com login Microsoft) é sempre feito pelo usuário na interface.
+A aba **Vagas** guarda as candidaturas em `data/cv-studio.db` (SQLite nativo do Node, local e fora do Git) e envia o email por SMTP com o pitch da versão escolhida e o PDF dela anexado. A conta SMTP fica em `data/mail-account.json`. A skill altera vagas só pelo `pnpm cv job`; **nunca edita `data/` direto nem lê `mail-account.json`**. O envio acontece de duas formas: o usuário clica em **Enviar email** na prévia ✈ da aba Vagas, ou a skill roda `pnpm cv job send <id> --yes` depois de mostrar a prévia (`pnpm cv job preview`) e receber a confirmação explícita daquele envio. Vagas criadas pelo CLI chegam à interface aberta pelo evento `jobs` de `/api/events`. Conectar a conta de email (Gmail com senha de app, Outlook com login Microsoft) é sempre feito pelo usuário na interface.
 
 ## Git
 
-A interface só grava arquivos. Quem registra o histórico é a skill, com commits de arquivos específicos (`git add content/cv/<slug>.*`, que inclui o `.pitch.md`) e mensagem `cv(<slug>): …`, sem push. Antes de commitar, `git status --short content/cv` mostra o que a interface alterou. Inclua só os arquivos da versão tratada; se houver outras alterações, mencione-as ao usuário em vez de commitá-las.
+O repositório é compartilhado por várias pessoas e guarda só código, skill e documentação. `content/cv/*`, `data/`, `output/` e `.env.local` estão no `.gitignore`. A interface, o CLI e a skill só gravam arquivos locais: não há commit de versões, pitches ou vagas, nem histórico para recuperar o que for apagado. Nunca use `git add -f` nesses caminhos. Mudanças de código só são commitadas quando o usuário pedir.
 
 ## Impressão
 

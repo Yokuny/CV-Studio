@@ -7,6 +7,7 @@ import {
   type Layout,
   remapBlockAlignments,
   slugify,
+  starterMarkdown,
   type TextAlignment,
 } from '@/lib/model';
 import {
@@ -25,7 +26,7 @@ import { type PersistedResumes, resumeStorage } from './persistence';
 const emptyVersion: Version = {
   id: '',
   name: 'Novo currículo',
-  markdown: '# Seu nome\n\n',
+  markdown: starterMarkdown,
   layout: defaultLayout,
   revision: null,
 };
@@ -223,7 +224,8 @@ export const useResumes = create<ResumesState>()(
         if (current && selectIsDirty(get(), current)) scheduleSave(id);
       },
       create: async (name) => {
-        const id = slugify(name);
+        // The first resume of a fresh checkout becomes base.md, the source of facts the skill reads.
+        const id = get().writable && !selectHasVersion(get()) ? 'base' : slugify(name);
         if (!id) {
           notify('Dê um nome à versão usando letras ou números.');
           return false;
@@ -251,7 +253,7 @@ export const useResumes = create<ResumesState>()(
         notify(
           get().writable
             ? `Versão criada em content/cv/${id}.md. As edições são salvas automaticamente.`
-            : 'Versão criada como rascunho. Baixe os arquivos para incluí-la no Git.',
+            : 'Versão criada como rascunho. Baixe os arquivos e coloque-os em content/cv para guardá-la.',
         );
         return true;
       },
@@ -288,7 +290,7 @@ export const useResumes = create<ResumesState>()(
             };
           });
           notify(
-            `“${target.name}” excluída. ${writable ? 'Faça um commit para registrar a exclusão no Git.' : 'Os arquivos do projeto permanecem no repositório.'}`,
+            `“${target.name}” excluída. ${writable ? 'Os arquivos foram removidos de content/cv.' : 'Os arquivos de content/cv permanecem intactos.'}`,
           );
         } finally {
           set({ deletingId: null });
@@ -309,7 +311,7 @@ export const useResumes = create<ResumesState>()(
       },
       exportSources: () => {
         downloadSources(selectCurrent(get()));
-        notify('Arquivos baixados. Coloque-os em content/cv para incluir esta versão no Git.');
+        notify('Arquivos baixados. Coloque-os em content/cv para guardar esta versão.');
       },
     }),
     {

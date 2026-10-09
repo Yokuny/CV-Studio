@@ -1,3 +1,4 @@
+import { mkdirSync } from 'node:fs';
 import { parseMailAccount, parseOutlookConnect } from '@cv-studio/core/mail';
 import express, { type ErrorRequestHandler } from 'express';
 import { printVersion } from './applications';
@@ -25,6 +26,8 @@ export interface ApiOptions {
 
 /** The local API of CV Studio: resume files, pitches, jobs and email. Never meant to be hosted. */
 export function createApi({ contentRoot, dataRoot, ...options }: ApiOptions) {
+  // content/cv is ignored by Git, so a fresh clone may not have it yet.
+  mkdirSync(contentRoot, { recursive: true });
   const files = resumeFiles(contentRoot);
   const db = openDatabase(dataRoot);
   const mail = mailAccount(dataRoot, options.mailOptions);
