@@ -989,9 +989,11 @@ body.is-scrubbing * {
   right: 0;
   background: #fff;
 }
-.jobs-panel tr[data-current-resume="true"],
-.jobs-panel tr[data-current-resume="true"] .job-actions {
-  background: #eff6ff;
+.jobs-panel tbody tr > td:first-child {
+  border-left: 2px solid transparent;
+}
+.jobs-panel tr[data-current-resume="true"] > td:first-child {
+  border-left-color: #007aff;
 }
 .job-history {
   display: grid;

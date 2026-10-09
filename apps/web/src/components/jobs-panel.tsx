@@ -45,7 +45,7 @@ function JobRow({ job }: { job: Job }) {
             </a>
           )}
         </div>
-        <div className="job-sub">
+        <div className="job-sub whitespace-nowrap">
           {job.company || '—'}
           {job.source && ` · ${job.source}`}
         </div>
